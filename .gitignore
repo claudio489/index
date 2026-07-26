@@ -25,3 +25,42 @@ dist-ssr
 
 # Local Netlify folder
 .netlify
+
+# Variables de entorno
+.env
+.env.local
+
+# Backups y scripts sueltos de sesiones anteriores
+backup_*/
+*.bak
+*.bak-*
+*.backup
+*.backup.*
+fix-v*.ps1
+fix_*.ps1
+fix.js
+fix.cjs
+gen.js
+*.ps1
+dev_output.txt
+vite_output.txt
+existing-files.txt
+count_tables.mjs
+
+# Archivos rotos de comandos mal pegados en terminal
+({
+{
+number
+void
+set({
+setShowForm(false)}
+setShowForm(true)}
+setTab('mias')}
+setTab('todas')}
+s.fetchExpeditions)
+s.isAuthenticated)
+r.expedition_id).filter(Boolean))
+
+# Backups con formato de fecha distinto
+*.backup-*
+backup_decotable_*.tsx
