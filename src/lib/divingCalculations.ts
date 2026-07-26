@@ -1,4 +1,4 @@
-// PADI RDP Table (air dives - no deco limits)
+﻿// PADI RDP Table (air dives - no deco limits)
 const tablaRDP = [
   { prof: 3, t: 400 }, { prof: 4, t: 350 }, { prof: 5, t: 300 }, { prof: 6, t: 280 },
   { prof: 7, t: 260 }, { prof: 8, t: 240 }, { prof: 9, t: 220 }, { prof: 10, t: 200 },
@@ -70,18 +70,18 @@ export function getSafetyStatus(
   if (profundidad > mod) {
     return {
       status: 'danger',
-      message: '⚠️ ALERTA: La profundidad EXCEDE la MOD. Riesgo de toxicidad por O2.',
+      message: 'âš ï¸ ALERTA: La profundidad EXCEDE la MOD. Riesgo de toxicidad por O2.',
     };
   }
   if (mod - profundidad < 3) {
     return {
       status: 'caution',
-      message: '⚡ Precaución: Estás muy cerca de la MOD. Mantén margen de seguridad.',
+      message: 'âš¡ Precaución: Estás muy cerca de la MOD. Mantén margen de seguridad.',
     };
   }
   return {
     status: 'safe',
-    message: '✅ Profundidad segura. Respeta siempre la MOD.',
+    message: 'âœ… Profundidad segura. Respeta siempre la MOD.',
   };
 }
 
@@ -106,16 +106,16 @@ export const gasMixes = [
   { label: 'Nitrox 40 (40% O2)', fO2: 0.40 },
   { label: 'Nitrox 50 (50% O2) - Deco', fO2: 0.50 },
   { label: 'Nitrox 80 (80% O2) - Deco', fO2: 0.80 },
-  { label: 'Oxígeno 100% (Deco)', fO2: 1.00 },
+  { label: 'Oxí­geno 100% (Deco)', fO2: 1.00 },
 ];
 
 // Daily safety tips
 export const safetyTips = [
   'Siempre analiza tu gas antes de cada inmersión. Si no analizaste, el gas no existe.',
-  'Nunca excedas la MOD de tu mezcla. Conocer tus límites es parte del buceo técnico.',
+  'Nunca excedas la MOD de tu mezcla. Conocer tus lí­mites es parte del buceo técnico.',
   'Planifica el buceo y bucea el plan. Las improvisaciones bajo el agua pueden ser fatales.',
   'Revisa tu equipo antes de cada inmersión. El checklist puede salvar tu vida.',
-  'Mantén un buddy siempre. El buceo solo es para profesionales con entrenamiento específico.',
+  'Mantén un buddy siempre. El buceo solo es para profesionales con entrenamiento especí­fico.',
   'Controla tu ascenso. Nunca superes 10m/min en ascenso libre.',
   'La regla de los tercios: 1/3 del gas para ir, 1/3 para volver, 1/3 de reserva.',
 ];
@@ -129,7 +129,8 @@ export function getDailyTip(): string {
 
 export function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Buenos días, Buzo';
+  if (hour < 12) return 'Buenos dí­as, Buzo';
   if (hour < 18) return 'Buenas tardes, Buzo';
   return 'Buenas noches, Buzo';
 }
+

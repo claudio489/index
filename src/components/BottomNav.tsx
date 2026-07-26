@@ -1,5 +1,5 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import { Home, BookOpen, Calculator, CalendarDays, BookMarked } from 'lucide-react';
+﻿import { NavLink, useLocation } from 'react-router-dom';
+import { Home, BookOpen, Calculator, CalendarDays, BookMarked, Wrench, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const navItems = [
@@ -7,7 +7,9 @@ const navItems = [
   { to: '/cursos', label: 'Repasos', icon: BookOpen },
   { to: '/calc-tools', label: 'Calc', icon: Calculator },
   { to: '/planificador', label: 'Plan', icon: CalendarDays },
+  { to: '/equipo', label: 'Equipo', icon: Wrench },
   { to: '/bitacora', label: 'Log', icon: BookMarked },
+  { to: '/perfil', label: 'Perfil', icon: User },
 ];
 
 export default function BottomNav() {
@@ -15,6 +17,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] h-16 bg-deep-ocean/95 backdrop-blur-md border-t border-ocean-surface/30 z-50 flex items-center justify-around select-none">
+      <div className="absolute -top-5 right-2 text-[8px] text-text-tertiary/50 font-mono">v1.0.4</div>
       {navItems.map((item) => {
         const isActive = item.to === '/'
           ? location.pathname === '/'
@@ -54,3 +57,8 @@ export default function BottomNav() {
     </nav>
   );
 }
+
+
+
+
+

@@ -29,12 +29,12 @@ export default function PWAInstallButton() {
       >
         <div className="bg-ocean-dark border border-ocean-surface/40 rounded-2xl shadow-elevated p-3.5 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-padi-blue/15 flex items-center justify-center flex-shrink-0">
-            <img src="./icon-crab.png" alt="INDEX" className="w-8 h-8 rounded-lg object-cover" />
+            <img src="./logo-header.png" alt="Dive Tools" className="w-8 h-8 rounded-lg object-cover" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-text-primary">Instalar INDEX</p>
+            <p className="text-sm font-semibold text-text-primary">Instalar Dive Tools</p>
             <p className="text-[10px] text-text-secondary leading-snug">
-              {isIOS ? 'Agrega INDEX a tu pantalla de inicio' : 'Acceso r√°pido desde tu pantalla de inicio'}
+              {isIOS ? 'Agrega INDEX a tu pantalla de inicio' : 'Acceso r·pido desde tu pantalla de inicio'}
             </p>
           </div>
           <button
@@ -80,7 +80,7 @@ export default function PWAInstallButton() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-text-primary">Paso 1</p>
-                    <p className="text-xs text-text-secondary">Toca el bot√≥n <strong>Compartir</strong> en la barra de Safari</p>
+                    <p className="text-xs text-text-secondary">Toca el botÛn <strong>Compartir</strong> en la barra de Safari</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 bg-ocean-mid/50 rounded-xl p-3">
@@ -94,11 +94,11 @@ export default function PWAInstallButton() {
                 </div>
                 <div className="flex items-start gap-3 bg-ocean-mid/50 rounded-xl p-3">
                   <div className="w-8 h-8 rounded-lg bg-alert-gold/15 flex items-center justify-center flex-shrink-0">
-                    <img src="./icon-crab.png" alt="" className="w-5 h-5 rounded" />
+                    <img src="./logo-header.png" alt="" className="w-5 h-5 rounded" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-text-primary">Paso 3</p>
-                    <p className="text-xs text-text-secondary">Toca <strong>Agregar</strong> y listo. INDEX estar√° en tu pantalla de inicio.</p>
+                    <p className="text-xs text-text-secondary">Toca <strong>Agregar</strong> y listo. INDEX estar· en tu pantalla de inicio.</p>
                   </div>
                 </div>
               </div>
@@ -115,3 +115,4 @@ export default function PWAInstallButton() {
     </>
   );
 }
+

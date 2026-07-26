@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalendarDays, ArrowRight } from 'lucide-react';
 import { gasMixes, calcularMOD, calcularPO2, calcularLND, calcularPEA, getSafetyStatus } from '@/lib/divingCalculations';
@@ -123,3 +123,4 @@ export default function QuickPlanner() {
     </section>
   );
 }
+

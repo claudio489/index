@@ -1,11 +1,20 @@
-import type { Tool } from '@/types';
+﻿import type { Tool } from '@/types';
 
 export const tools: Tool[] = [
+  {
+    id: 'expediciones',
+    name: 'Expediciones',
+    slug: 'expediciones',
+    description: 'Descubre y únete a expediciones de buceo organizadas. Isla de Pascua y más destinos.',
+    icon: 'Compass',
+    color: '#00d4ff',
+    category: 'Expedición'
+  },
   {
     id: 'tabla-rdp',
     name: 'Tabla RDP',
     slug: 'tabla-rdp',
-    description: 'Tabla PADI RDP completa con límites de no-descompresión.',
+    description: 'Tabla PADI RDP completa con lí­mites de no-descompresión.',
     icon: 'Table',
     color: '#0070D3',
     category: 'Referencia'
@@ -14,7 +23,7 @@ export const tools: Tool[] = [
     id: 'conversor',
     name: 'Conversor',
     slug: 'conversor',
-    description: 'Conversión entre unidades: metros/pies, bar/psi, °C/°F.',
+    description: 'Conversión entre unidades: metros/pies, bar/psi, Â°C/Â°F.',
     icon: 'ArrowLeftRight',
     color: '#94B8C9',
     category: 'Utilidad'
@@ -32,7 +41,7 @@ export const tools: Tool[] = [
     id: 'log',
     name: 'Log de Buceos',
     slug: 'log',
-    description: 'Registro de inmersiones con estadísticas y historial.',
+    description: 'Registro de inmersiones con estadí­sticas y historial.',
     icon: 'BookMarked',
     color: '#FFD700',
     category: 'Registro'
@@ -50,7 +59,7 @@ export const tools: Tool[] = [
     id: 'cns',
     name: 'Calculadora CNS',
     slug: 'cns',
-    description: 'Cálculo de toxicidad por oxígeno acumulada (CNS%).',
+    description: 'Cálculo de toxicidad por oxí­geno acumulada (CNS%).',
     icon: 'Activity',
     color: '#F23D4E',
     category: 'Seguridad'
@@ -59,3 +68,5 @@ export const tools: Tool[] = [
 
 export const getToolBySlug = (slug: string): Tool | undefined =>
   tools.find(t => t.slug === slug);
+
+

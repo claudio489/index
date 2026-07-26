@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Film, Clock, AlertTriangle, Play } from 'lucide-react';
 
@@ -103,7 +103,7 @@ export default function VideoSection({ videos, courseName: _courseName }: VideoS
           <div className="flex items-start gap-2 bg-alert-gold/5 rounded-lg p-2.5 border border-alert-gold/10">
             <AlertTriangle size={12} className="text-alert-gold flex-shrink-0 mt-0.5" />
             <p className="text-[10px] text-text-secondary leading-relaxed">
-              Los videos tienen fecha de expiración. Estos videos son materiales educativos de apoyo — no reemplazan la certificación PADI.
+              Los videos tienen fecha de expiración. Estos videos son materiales educativos de apoyo â€” no reemplazan la certificación PADI.
             </p>
           </div>
         </div>
@@ -111,3 +111,4 @@ export default function VideoSection({ videos, courseName: _courseName }: VideoS
     </motion.div>
   );
 }
+

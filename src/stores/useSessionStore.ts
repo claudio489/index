@@ -1,261 +1,361 @@
+// src/stores/useSessionStore.ts
+// UNIFICADO: Admin + Login con schema nuevo (code, encrypted_code, label, role)
+
 import { create } from 'zustand';
-import type { SessionToken, AccessCode } from '@/lib/accessControl';
-import { isSessionValid, encryptSession, decryptSession, hash, createSessionToken, defaultAccessCodes } from '@/lib/accessControl';
-import { getDeviceFingerprint, isSameDevice } from '@/lib/deviceFingerprint';
+import { persist } from 'zustand/middleware';
+import { supabase } from '@/lib/supabase';
+import { encryptCode, generateAccessCode } from '@/lib/accessControl';
+import { getDeviceFingerprint, storeDeviceFingerprint } from '@/lib/deviceFingerprint';
 
-interface SessionState {
-  token: SessionToken | null;
-  isAuthenticated: boolean;
-  loginError: string;
-  login: (token: SessionToken, deviceFp: string) => Promise<boolean>;
-  logout: () => void;
-  hasCourseAccess: (courseId: string) => boolean;
-  loadSession: () => Promise<void>;
+// ============================================================
+// INTERFACES
+// ============================================================
+export interface AccessCode {
+  id: string
+  code: string
+  encryptedCode: string
+  label: string
+  role: 'admin' | 'instructor' | 'user'
+  createdAt: string
+  expiresAt?: string
+  usedCount: number
+  maxUses?: number
+  isActive: boolean
+  createdBy?: string
+  isLocal?: boolean
 }
 
-async function getDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('index-auth', 1);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('session')) {
-        db.createObjectStore('session', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('codes')) {
-        db.createObjectStore('codes', { keyPath: 'id' });
-      }
-    };
-  });
+export interface SessionToken {
+  name: string
+  role: string
+  expiresAt: string
+  codeId: string
+  code: string
 }
 
-async function saveSessionToDB(encrypted: string) {
-  try {
-    const db = await getDB();
-    const tx = db.transaction('session', 'readwrite');
-    const store = tx.objectStore('session');
-    store.put({ id: 'current', encrypted });
-  } catch {
-    localStorage.setItem('index_session', encrypted);
-  }
+export interface CreateCodeParams {
+  label: string
+  role?: 'admin' | 'instructor' | 'user'
+  expiresInDays?: number
+  maxUses?: number
 }
 
-async function loadSessionFromDB(): Promise<string | null> {
-  try {
-    const db = await getDB();
-    const tx = db.transaction('session', 'readonly');
-    const store = tx.objectStore('session');
-    const req = store.get('current');
-    return new Promise((resolve) => {
-      req.onsuccess = () => resolve(req.result?.encrypted || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch {
-    return localStorage.getItem('index_session') || null;
-  }
-}
-
-// LocalStorage fallback for codes
-function getCodesFromLS(): AccessCode[] {
-  const stored = localStorage.getItem('index_codes');
-  if (stored) return JSON.parse(stored);
-  // Seed with defaults on first use
-  localStorage.setItem('index_codes', JSON.stringify(defaultAccessCodes));
-  return defaultAccessCodes;
-}
-
-function saveCodesToLS(codes: AccessCode[]) {
-  localStorage.setItem('index_codes', JSON.stringify(codes));
-}
-
-export async function getAccessCodes(): Promise<AccessCode[]> {
-  try {
-    const db = await getDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('codes', 'readonly');
-      const store = tx.objectStore('codes');
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const codes = req.result;
-        if (codes.length === 0) {
-          // Seed with defaults
-          for (const code of defaultAccessCodes) {
-            const wtx = db.transaction('codes', 'readwrite');
-            wtx.objectStore('codes').put(code);
-          }
-          resolve([...defaultAccessCodes]);
-        } else {
-          resolve(codes);
-        }
-      };
-      req.onerror = () => reject(req.error);
-    });
-  } catch {
-    return getCodesFromLS();
-  }
-}
-
-export async function getAccessCodesWithDevices(): Promise<(AccessCode & { deviceFp?: string; deviceName?: string })[]> {
-  const codes = await getAccessCodes();
-  const devices = getAllDeviceBindings();
-  return codes.map(c => {
-    const dev = devices.find(d => d.codeId === c.id);
-    return { ...c, deviceFp: dev?.deviceFp, deviceName: dev?.deviceName };
-  });
-}
-
-export async function saveAccessCode(code: AccessCode) {
-  try {
-    const db = await getDB();
-    const tx = db.transaction('codes', 'readwrite');
-    tx.objectStore('codes').put(code);
-  } catch {
-    const existing = getCodesFromLS();
-    const idx = existing.findIndex((c: AccessCode) => c.id === code.id);
-    if (idx >= 0) existing[idx] = code; else existing.push(code);
-    saveCodesToLS(existing);
-  }
-}
-
-export async function deleteAccessCode(id: string) {
-  deleteDeviceBinding(id);
-  try {
-    const db = await getDB();
-    const tx = db.transaction('codes', 'readwrite');
-    tx.objectStore('codes').delete(id);
-  } catch {
-    const existing = getCodesFromLS().filter((c: AccessCode) => c.id !== id);
-    saveCodesToLS(existing);
-  }
-}
-
-// Device binding management
+// ============================================================
+// DEVICE BINDING (localStorage - no en Supabase)
+// ============================================================
 interface DeviceBinding {
-  codeId: string;
-  deviceFp: string;
-  deviceName: string;
-  boundAt: string;
+  codeId: string
+  deviceFp: string
+  boundAt: string
 }
 
-function getAllDeviceBindings(): DeviceBinding[] {
+function getDeviceBindings(): DeviceBinding[] {
   try {
     return JSON.parse(localStorage.getItem('index_device_bindings') || '[]');
   } catch { return []; }
 }
 
-function getDeviceBinding(codeId: string): DeviceBinding | undefined {
-  return getAllDeviceBindings().find(b => b.codeId === codeId);
-}
-
 function saveDeviceBinding(binding: DeviceBinding) {
-  const all = getAllDeviceBindings().filter(b => b.codeId !== binding.codeId);
+  const all = getDeviceBindings().filter(b => b.codeId !== binding.codeId);
   all.push(binding);
   localStorage.setItem('index_device_bindings', JSON.stringify(all));
 }
 
-export function deleteDeviceBinding(codeId: string) {
-  const all = getAllDeviceBindings().filter(b => b.codeId !== codeId);
-  localStorage.setItem('index_device_bindings', JSON.stringify(all));
+function isDeviceBound(codeId: string): boolean {
+  return getDeviceBindings().some(b => b.codeId === codeId);
 }
 
-export function revokeDeviceFromCode(codeId: string) {
-  deleteDeviceBinding(codeId);
+function isSameDevice(codeId: string, deviceFp: string): boolean {
+  const binding = getDeviceBindings().find(b => b.codeId === codeId);
+  return binding ? binding.deviceFp === deviceFp : false;
 }
 
-export const useSessionStore = create<SessionState>((set, get) => ({
+// ============================================================
+// ADMIN STORE (Zustand + persist)
+// ============================================================
+interface AdminState {
+  codes: AccessCode[]
+  isLoading: boolean
+  error: string | null
+  loadCodes: () => Promise<void>
+  createCode: (p: CreateCodeParams) => Promise<AccessCode | null>
+  revokeCode: (id: string) => Promise<void>
+  refreshCodes: () => Promise<void>
+  clearError: () => void
+}
+
+const TBL = 'access_codes';
+
+export const useAdminStore = create<AdminState>()(
+  persist(
+    (set, get) => ({
+      codes: [],
+      isLoading: false,
+      error: null,
+
+      loadCodes: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data, error } = await supabase
+            .from(TBL)
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (error) throw error;
+          set({
+            codes: (data || []).map((r: any) => ({
+              id: r.id,
+              code: r.code || '',
+              encryptedCode: r.encrypted_code || '',
+              label: r.label || '',
+              role: r.role || 'user',
+              createdAt: r.created_at,
+              expiresAt: r.expires_at,
+              usedCount: r.used_count || 0,
+              maxUses: r.max_uses,
+              isActive: r.is_active ?? true,
+              createdBy: r.created_by,
+              isLocal: false,
+            })),
+            isLoading: false,
+          });
+        } catch (e: any) {
+          set({ error: e.message, isLoading: false });
+        }
+      },
+
+      createCode: async (p) => {
+        set({ isLoading: true, error: null });
+        try {
+          const pc = generateAccessCode();
+          const ec = encryptCode(pc);
+          const ed = p.expiresInDays
+            ? new Date(Date.now() + p.expiresInDays * 86400000).toISOString()
+            : null;
+          const ins: any = {
+            encrypted_code: ec,
+            code: pc,
+            label: p.label,
+            role: p.role || 'user',
+            expires_at: ed,
+            max_uses: p.maxUses,
+            is_active: true,
+            used_count: 0,
+          };
+          const { data, error } = await supabase
+            .from(TBL)
+            .insert(ins)
+            .select()
+            .single();
+          if (error) throw error;
+          const nc: AccessCode = {
+            id: data.id,
+            code: pc,
+            encryptedCode: data.encrypted_code,
+            label: data.label,
+            role: data.role,
+            createdAt: data.created_at,
+            expiresAt: data.expires_at,
+            usedCount: 0,
+            maxUses: data.max_uses,
+            isActive: true,
+            createdBy: data.created_by,
+            isLocal: false,
+          };
+          set((st) => ({ codes: [nc, ...st.codes], isLoading: false }));
+          return nc;
+        } catch (e: any) {
+          set({ error: e.message, isLoading: false });
+          return null;
+        }
+      },
+
+      revokeCode: async (id) => {
+        if (id.startsWith('local-')) {
+          set((st) => ({ codes: st.codes.filter((c) => c.id !== id) }));
+          return;
+        }
+        try {
+          const { error } = await supabase.from(TBL).update({ is_active: false }).eq('id', id);
+          if (error) throw error;
+        } catch (e: any) {
+          set({ error: e.message });
+        }
+        set((st) => ({
+          codes: st.codes.map((c) =>
+            c.id === id ? { ...c, isActive: false } : c
+          ),
+        }));
+      },
+
+      refreshCodes: async () => {
+        await get().loadCodes();
+      },
+
+      clearError: () => set({ error: null }),
+    }),
+    {
+      name: 'admin-store',
+      partialize: (st) => ({ codes: st.codes }),
+    }
+  )
+);
+
+export function useSessionCodes() {
+  const st = useAdminStore();
+  return {
+    codes: st.codes,
+    isLoading: st.isLoading,
+    error: st.error,
+    loadCodes: st.loadCodes,
+    createCode: st.createCode,
+    revokeCode: st.revokeCode,
+    refreshCodes: st.refreshCodes,
+    clearError: st.clearError,
+  };
+}
+
+// ============================================================
+// LOGIN / AUTH STORE
+// ============================================================
+interface AuthState {
+  token: SessionToken | null;
+  isAuthenticated: boolean;
+  loginError: string;
+  login: (code: string) => Promise<boolean>;
+  logout: () => void;
+  loadSession: () => Promise<void>;
+  hasCourseAccess: (_courseId: string) => boolean;
+}
+
+const SESSION_KEY = 'index_session_token';
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   isAuthenticated: false,
   loginError: '',
 
-  login: async (token, deviceFp) => {
-    saveDeviceBinding({
-      codeId: token.codeId,
-      deviceFp,
-      deviceName: navigator.userAgent.slice(0, 50),
-      boundAt: new Date().toISOString(),
-    });
-    const encrypted = encryptSession(token, token.codeId);
-    await saveSessionToDB(encrypted);
-    set({ token, isAuthenticated: true, loginError: '' });
-    return true;
+  login: async (inputCode: string) => {
+    set({ loginError: '' });
+    const code = inputCode.toUpperCase().trim();
+    const deviceFp = storeDeviceFingerprint();
+    const now = new Date().toISOString();
+
+    // 1. Buscar en Supabase por code (plano)
+    try {
+      const { data, error } = await supabase
+        .from(TBL)
+        .select('*')
+        .eq('code', code)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        // Verificar expiracion
+        if (data.expires_at && data.expires_at <= now) {
+          set({ loginError: 'Codigo expirado. Contacta a tu instructor.' });
+          return false;
+        }
+
+        // Verificar device binding
+        if (isDeviceBound(data.id) && !isSameDevice(data.id, deviceFp)) {
+          set({ loginError: 'Este codigo ya fue usado en otro dispositivo. Solicita uno nuevo.' });
+          return false;
+        }
+
+        // Crear token
+        const token: SessionToken = {
+          name: data.label || 'Usuario',
+          role: data.role || 'user',
+          expiresAt: data.expires_at || new Date(Date.now() + 365 * 86400000).toISOString(),
+          codeId: data.id,
+          code: data.code,
+        };
+
+        // Guardar device binding
+        saveDeviceBinding({
+          codeId: data.id,
+          deviceFp,
+          boundAt: now,
+        });
+
+        // Guardar sesion
+        localStorage.setItem(SESSION_KEY, JSON.stringify(token));
+        set({ token, isAuthenticated: true, loginError: '' });
+        return true;
+      }
+    } catch (err: any) {
+      console.warn('Supabase login failed:', err);
+    }
+
+    // 2. Fallback: buscar en localStorage (admin-store)
+    const localCodes = useAdminStore.getState().codes;
+    const localCode = localCodes.find(c => c.code === code && c.isActive);
+    if (localCode) {
+      if (localCode.expiresAt && localCode.expiresAt <= now) {
+        set({ loginError: 'Codigo expirado.' });
+        return false;
+      }
+      if (isDeviceBound(localCode.id) && !isSameDevice(localCode.id, deviceFp)) {
+        set({ loginError: 'Este codigo ya fue usado en otro dispositivo.' });
+        return false;
+      }
+      const token: SessionToken = {
+        name: localCode.label,
+        role: localCode.role,
+        expiresAt: localCode.expiresAt || new Date(Date.now() + 365 * 86400000).toISOString(),
+        codeId: localCode.id,
+        code: localCode.code,
+      };
+      saveDeviceBinding({ codeId: localCode.id, deviceFp, boundAt: now });
+      localStorage.setItem(SESSION_KEY, JSON.stringify(token));
+      set({ token, isAuthenticated: true, loginError: '' });
+      return true;
+    }
+
+    set({ loginError: 'Codigo invalido. Verifica e intenta de nuevo.' });
+    return false;
   },
 
   logout: () => {
-    localStorage.removeItem('index_session');
+    localStorage.removeItem(SESSION_KEY);
     set({ token: null, isAuthenticated: false, loginError: '' });
-  },
-
-  hasCourseAccess: (courseId) => {
-    const { token } = get();
-    if (!token || !isSessionValid(token)) return false;
-    return token.courses.includes(courseId);
   },
 
   loadSession: async () => {
     try {
-      const encrypted = await loadSessionFromDB();
-      if (!encrypted) return;
-      const codes = await getAccessCodes();
-      for (const code of codes) {
-        const decrypted = decryptSession(encrypted, code.id);
-        if (decrypted && isSessionValid(decrypted)) {
-          const binding = getDeviceBinding(decrypted.codeId);
-          if (binding) {
-            const currentFp = getDeviceFingerprint();
-            if (currentFp !== binding.deviceFp) {
-              set({ token: null, isAuthenticated: false, loginError: 'Codigo vinculado a otro dispositivo. Solicita uno nuevo.' });
-              return;
-            }
-          }
-          set({ token: decrypted, isAuthenticated: true, loginError: '' });
-          return;
-        }
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const token: SessionToken = JSON.parse(raw);
+      if (new Date(token.expiresAt) <= new Date()) {
+        localStorage.removeItem(SESSION_KEY);
+        set({ token: null, isAuthenticated: false, loginError: 'Sesion expirada.' });
+        return;
       }
+      // Verificar device binding
+      const deviceFp = getDeviceFingerprint();
+      if (isDeviceBound(token.codeId) && !isSameDevice(token.codeId, deviceFp)) {
+        localStorage.removeItem(SESSION_KEY);
+        set({ token: null, isAuthenticated: false, loginError: 'Dispositivo no autorizado.' });
+        return;
+      }
+      set({ token, isAuthenticated: true, loginError: '' });
     } catch {
-      // No valid session
+      localStorage.removeItem(SESSION_KEY);
     }
+  },
+
+  hasCourseAccess: (_courseId: string) => {
+    const { token } = get();
+    if (!token) return false;
+    // Por ahora todos los usuarios autenticados tienen acceso a todos los cursos
+    // TODO: implementar matriz de cursos por rol si es necesario
+    return true;
   },
 }));
 
-// Validate access code with device binding check
-export async function validateAccessWithDevice(
-  inputCode: string,
-  deviceFp: string,
-  _deviceName: string
-): Promise<{ valid: boolean; token?: SessionToken; error?: string }> {
-  const inputHash = hash(inputCode.toUpperCase());
-  const codes = await getAccessCodes();
-  const now = new Date().toISOString();
-
-  for (const code of codes) {
-    if (code.codeHash !== inputHash) continue;
-
-    if (code.expiresAt <= now) {
-      return { valid: false, error: 'Codigo expirado. Contacta a tu instructor.' };
-    }
-
-    const existingBinding = getDeviceBinding(code.id);
-    if (existingBinding) {
-      if (!isSameDevice(existingBinding.deviceFp)) {
-        return {
-          valid: false,
-          error: 'Este codigo ya fue usado en otro dispositivo. No se permite compartir. Solicita uno nuevo a tu instructor.'
-        };
-      }
-      // Same device re-login
-    }
-
-    const token = createSessionToken(code);
-    saveDeviceBinding({
-      codeId: code.id,
-      deviceFp,
-      deviceName: navigator.userAgent.slice(0, 80),
-      boundAt: new Date().toISOString(),
-    });
-
-    return { valid: true, token };
-  }
-
-  return { valid: false, error: 'Codigo invalido. Verifica e intenta de nuevo.' };
-}
+// ============================================================
+// COMPATIBILIDAD: useSessionStore = useAuthStore (login/auth)
+// ============================================================
+export const useSessionStore = useAuthStore;

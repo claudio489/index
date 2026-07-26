@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { ShieldCheck, Lightbulb } from 'lucide-react';
 import { getDailyTip } from '@/lib/divingCalculations';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -31,7 +31,7 @@ export default function SafetyStatusCard({
           <ShieldCheck size={18} className="text-success-green" />
           <h3 className="text-sm font-semibold text-text-primary">Estado de Seguridad</h3>
         </div>
-        <span className="text-[10px] text-text-tertiary">Última inmersión: Hace 2 días</span>
+        <span className="text-[10px] text-text-tertiary">íšltima inmersión: Hace 2 dí­as</span>
       </div>
 
       {/* Safety Tip */}
@@ -58,3 +58,4 @@ export default function SafetyStatusCard({
     </motion.div>
   );
 }
+

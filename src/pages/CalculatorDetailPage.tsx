@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { Ruler, Hourglass, Gauge, FlaskConical, Wind, ArrowDownToLine, ArrowLeftRight, Table, ClipboardCheck, Grid3x3, Activity, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -7,7 +7,7 @@ import { gasMixes, calcularMOD, calcularPO2, calcularLND, calcularPEA, calcularB
 import StatusBanner from '@/components/StatusBanner';
 import type { SafetyStatus } from '@/types';
 
-/* ─────────────── MOD Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ MOD Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function MODCalculator() {
   const [fO2, setFO2] = useState(32);
   const [pO2max, setPO2max] = useState(1.4);
@@ -21,7 +21,7 @@ function MODCalculator() {
 
   return (
     <CalcShell icon={<Ruler size={22} className="text-padi-blue" />} title="MOD" color="#0070D3"
-      description="Profundidad Máxima Operativa basada en la presión parcial de O2 límite.">
+      description="Profundidad Máxima Operativa basada en la presión parcial de O2 lí­mite.">
       <div className="space-y-4">
         <div>
           <label className="text-[10px] text-text-tertiary font-medium mb-1 block">Fracción O2 (%)</label>
@@ -58,7 +58,7 @@ function MODCalculator() {
           <div className="grid grid-cols-2 gap-1.5">
             {modReferenceTable.map((row, i) => (
               <div key={i} className="bg-ocean-dark rounded-lg px-2 py-1.5 text-center">
-                <span className="text-[10px] text-text-secondary">{(row.fO2 * 100).toFixed(0)}% → </span>
+                <span className="text-[10px] text-text-secondary">{(row.fO2 * 100).toFixed(0)}% â†’ </span>
                 <span className="text-xs font-mono font-semibold text-text-primary">{row.mod14.toFixed(1)}m</span>
               </div>
             ))}
@@ -69,7 +69,7 @@ function MODCalculator() {
   );
 }
 
-/* ─────────────── LND Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ LND Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function LNDCalculator() {
   const [gasIndex, setGasIndex] = useState(2);
   const [depth, setDepth] = useState(18);
@@ -134,7 +134,7 @@ function LNDCalculator() {
             </div>
             {result.ndl === null && (
               <div className="bg-alert-red/10 rounded-xl p-3 text-center border border-alert-red/20">
-                <p className="text-xs text-alert-red font-medium">⚠️ Mezcla de descompresión — No aplica LND</p>
+                <p className="text-xs text-alert-red font-medium">âš ï¸ Mezcla de descompresión â€” No aplica LND</p>
               </div>
             )}
             <StatusBanner status={result.status} message={result.message} />
@@ -145,7 +145,7 @@ function LNDCalculator() {
   );
 }
 
-/* ─────────────── Best Mix Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Best Mix Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function BestMixCalculator() {
   const [depth, setDepth] = useState(30);
   const [pO2max, setPO2max] = useState(1.4);
@@ -198,7 +198,7 @@ function BestMixCalculator() {
   );
 }
 
-/* ─────────────── Gas Blender Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Gas Blender Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function GasBlenderCalculator() {
   const [currentPressure, setCurrentPressure] = useState(50);
   const [finalPressure, setFinalPressure] = useState(200);
@@ -220,11 +220,11 @@ function GasBlenderCalculator() {
 
     // Validaciones
     if (fP <= cP) {
-      setResult({ o2ToAdd: 0, airToAdd: 0, error: 'La presión final debe ser mayor que la presión actual. Vacía el tanque si necesitas.' });
+      setResult({ o2ToAdd: 0, airToAdd: 0, error: 'La presión final debe ser mayor que la presión actual. Vací­a el tanque si necesitas.' });
       return;
     }
     if (tF <= cF) {
-      setResult({ o2ToAdd: 0, airToAdd: 0, error: 'No puedes reducir el % de O2 agregando O2 puro. Vacía el tanque y empieza de nuevo.' });
+      setResult({ o2ToAdd: 0, airToAdd: 0, error: 'No puedes reducir el % de O2 agregando O2 puro. Vací­a el tanque y empieza de nuevo.' });
       return;
     }
 
@@ -236,7 +236,7 @@ function GasBlenderCalculator() {
       const airNeeded = totalGasToAdd - o2Needed;
 
       if (o2Needed < 0) {
-        setResult({ o2ToAdd: 0, airToAdd: 0, error: 'El gas actual ya tiene más O2 que el objetivo. Vacía el tanque.' });
+        setResult({ o2ToAdd: 0, airToAdd: 0, error: 'El gas actual ya tiene más O2 que el objetivo. Vací­a el tanque.' });
         return;
       }
       if (airNeeded < 0) {
@@ -360,7 +360,7 @@ function GasBlenderCalculator() {
             )}
 
             <div className="bg-alert-gold/10 rounded-xl p-3 text-center border border-alert-gold/20">
-              <p className="text-xs text-alert-gold font-medium">⚠️ Siempre analiza la mezcla final antes de usar. Esta calculadora es guía, no sustituye el análisis.</p>
+              <p className="text-xs text-alert-gold font-medium">âš ï¸ Siempre analiza la mezcla final antes de usar. Esta calculadora es guí­a, no sustituye el análisis.</p>
             </div>
           </motion.div>
         )}
@@ -369,7 +369,7 @@ function GasBlenderCalculator() {
   );
 }
 
-/* ─────────────── EAD Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ EAD Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function EADCalculator() {
   const [depth, setDepth] = useState(30);
   const [fO2, setFO2] = useState(32);
@@ -417,7 +417,7 @@ function EADCalculator() {
   );
 }
 
-/* ─────────────── SAC Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ SAC Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function SACCalculator() {
   const [startPressure, setStartPressure] = useState(200);
   const [endPressure, setEndPressure] = useState(80);
@@ -446,7 +446,7 @@ function SACCalculator() {
 
   return (
     <CalcShell icon={<Wind size={22} className="text-safety-orange" />} title="SAC" color="#FF7B2E"
-      description="Surface Air Consumption — consumo de gas en litros/min a 1 ATA.">
+      description="Surface Air Consumption â€” consumo de gas en litros/min a 1 ATA.">
       <div className="space-y-3">
         {[
           { label: 'Presión inicial (bar)', value: startPressure, set: setStartPressure, min: 0, max: 300 },
@@ -473,7 +473,7 @@ function SACCalculator() {
               <p className="text-[10px] text-text-tertiary mb-1">Surface Air Consumption</p>
               <p className="text-3xl font-bold font-mono text-safety-orange">{result.sac} L/min</p>
               <p className="text-xs text-text-secondary mt-1">
-                {result.sac < 12 ? 'Excelente' : result.sac < 16 ? 'Bueno' : result.sac < 20 ? 'Promedio' : result.sac < 25 ? 'Alto' : 'Muy alto — revisa técnica'}
+                {result.sac < 12 ? 'Excelente' : result.sac < 16 ? 'Bueno' : result.sac < 20 ? 'Promedio' : result.sac < 25 ? 'Alto' : 'Muy alto â€” revisa técnica'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -493,7 +493,7 @@ function SACCalculator() {
   );
 }
 
-/* ─────────────── Tabla RDP ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Tabla RDP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function TablaRDP() {
   const rdpTable = [
     [3,400],[4,350],[5,300],[6,280],[7,260],[8,240],[9,220],[10,200],[11,180],[12,160],
@@ -507,7 +507,7 @@ function TablaRDP() {
 
   return (
     <CalcShell icon={<Table size={22} className="text-padi-blue" />} title="Tabla PADI RDP" color="#0070D3"
-      description="Tabla de Límites de No-Descompresión para aire.">
+      description="Tabla de Lí­mites de No-Descompresión para aire.">
       <div className="space-y-3">
         <p className="text-[10px] text-text-tertiary text-center">Toca una profundidad para ver detalle</p>
         <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
@@ -542,7 +542,7 @@ function TablaRDP() {
           <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
             className="bg-padi-blue/10 rounded-xl p-3 border border-padi-blue/20 text-center">
             <p className="text-xs text-text-secondary">
-              A <span className="font-bold text-padi-blue">{selectedDepth}m</span> → LND = <span className="font-bold font-mono text-padi-blue">{rdpTable.find(r => r[0] === selectedDepth)?.[1]} min</span>
+              A <span className="font-bold text-padi-blue">{selectedDepth}m</span> â†’ LND = <span className="font-bold font-mono text-padi-blue">{rdpTable.find(r => r[0] === selectedDepth)?.[1]} min</span>
             </p>
           </motion.div>
         )}
@@ -551,7 +551,7 @@ function TablaRDP() {
   );
 }
 
-/* ─────────────── Checklist Tool ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Checklist Tool â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function ChecklistTool() {
   const categories = [
     {
@@ -583,7 +583,7 @@ function ChecklistTool() {
         'Etiquetas de gas analizadas',
         'Mezclas deco configuradas',
         'Plan de deco impreso/QR',
-        'Botiquín de O2',
+        'Botiquí­n de O2',
         'Kit de herramientas',
       ],
     },
@@ -660,7 +660,7 @@ function ChecklistTool() {
   );
 }
 
-/* ─────────────── Unit Converter Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Unit Converter Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function UnitConverterCalculator() {
   const [category, setCategory] = useState<'presion' | 'peso' | 'distancia' | 'velocidad' | 'temperatura'>('presion');
   const [value, setValue] = useState<string>('1');
@@ -710,8 +710,8 @@ function UnitConverterCalculator() {
     temperatura: {
       label: 'Temperatura',
       units: [
-        { key: 'c', label: '°Celsius', factor: 1 },
-        { key: 'f', label: '°Fahrenheit', factor: 1 },
+        { key: 'c', label: 'Â°Celsius', factor: 1 },
+        { key: 'f', label: 'Â°Fahrenheit', factor: 1 },
         { key: 'k', label: 'Kelvin', factor: 1 },
       ],
     },
@@ -736,7 +736,7 @@ function UnitConverterCalculator() {
       return;
     }
 
-    // Conversión lineal: valor → base → destino
+    // Conversión lineal: valor â†’ base â†’ destino
     const fromFactor = currentUnits.find(u => u.key === fromUnit)?.factor || 1;
     const toFactor = currentUnits.find(u => u.key === toUnit)?.factor || 1;
     const baseValue = val / fromFactor; // convertir a unidad base
@@ -751,9 +751,9 @@ function UnitConverterCalculator() {
     <CalcShell icon={<ArrowLeftRight size={22} className="text-purple-400" />} title="Conversor de Unidades" color="#9B59B6"
       description="Conversión completa de presión, peso, distancia, velocidad y temperatura.">
       <div className="space-y-4">
-        {/* Categoría */}
+        {/* Categorí­a */}
         <div>
-          <label className="text-[10px] text-text-tertiary font-medium mb-1 block">Categoría</label>
+          <label className="text-[10px] text-text-tertiary font-medium mb-1 block">Categorí­a</label>
           <div className="grid grid-cols-5 gap-1.5">
             {Object.entries(categories).map(([key, cat]) => (
               <button
@@ -839,14 +839,14 @@ function UnitConverterCalculator() {
                 {Math.abs(result) < 0.01 ? result.toExponential(3) : result.toFixed(3).replace(/\.?0+$/, '')}
               </p>
               <p className="text-xs text-text-secondary mt-1">
-                {currentUnits.find(u => u.key === fromUnit)?.label} → {currentUnits.find(u => u.key === toUnit)?.label}
+                {currentUnits.find(u => u.key === fromUnit)?.label} â†’ {currentUnits.find(u => u.key === toUnit)?.label}
               </p>
             </div>
 
             {/* Tabla de referencia rápida */}
             <div className="bg-ocean-mid rounded-xl p-3">
               <p className="text-[10px] font-semibold text-purple-400 mb-2 text-center">
-                Tabla de referencia — {categories[category].label}
+                Tabla de referencia â€” {categories[category].label}
               </p>
               <div className="space-y-1">
                 {[0.5, 1, 2, 5, 10].map(mult => {
@@ -888,7 +888,7 @@ function UnitConverterCalculator() {
   );
 }
 
-/* ─────────────── Shell ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function CalcShell({ icon, title, color, description, children }: {
   icon: React.ReactNode; title: string; color: string; description: string; children: React.ReactNode;
 }) {
@@ -905,13 +905,13 @@ function CalcShell({ icon, title, color, description, children }: {
         </div>
       </div>
       <p className="text-[10px] text-text-tertiary text-center mt-3 px-4">
-        ⚠️ Verifica siempre con tablas PADI oficiales. Esta calculadora es una herramienta de apoyo.
+        âš ï¸ Verifica siempre con tablas PADI oficiales. Esta calculadora es una herramienta de apoyo.
       </p>
     </div>
   );
 }
 
-/* ─────────────── Tabla MOD ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Tabla MOD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function TablaMOD() {
   const mixes = [
     { fO2: 0.21, name: 'Aire' },
@@ -969,7 +969,7 @@ function TablaMOD() {
   );
 }
 
-/* ─────────────── CNS Calculator ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ CNS Calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function CNSCalculator() {
   const [exposures, setExposures] = useState([
     { po2: 1.4, time: 20 },
@@ -1002,7 +1002,7 @@ function CNSCalculator() {
     const status = total < 50 ? { status: 'Seguro', color: 'text-success-green' }
       : total < 80 ? { status: 'Precaución', color: 'text-alert-gold' }
       : total < 100 ? { status: 'Peligro', color: 'text-alert-red' }
-      : { status: 'CRÍTICO', color: 'text-alert-red' };
+      : { status: 'CRíTICO', color: 'text-alert-red' };
     setResult({ totalCNS: total, ...status });
   };
 
@@ -1020,7 +1020,7 @@ function CNSCalculator() {
 
   return (
     <CalcShell icon={<Activity size={22} className="text-alert-red" />} title="Calculadora CNS" color="#F23D4E"
-      description="Toxicidad por oxígeno acumulada (CNS%) basada en PO2 y tiempo.">
+      description="Toxicidad por oxí­geno acumulada (CNS%) basada en PO2 y tiempo.">
       <div className="space-y-4">
         <p className="text-[10px] text-text-tertiary">Agrega cada exposición a O2 (fondo + deco). El CNS se acumula.</p>
 
@@ -1087,14 +1087,14 @@ function CNSCalculator() {
             {result.totalCNS >= 80 && (
               <div className="bg-alert-red/10 rounded-xl p-3 border border-alert-red/20">
                 <p className="text-xs text-alert-red font-medium text-center">
-                  ⚠️ CNS ≥ 80% — Riesgo de convulsión por O2. Reduce PO2 o tiempo.
+                  âš ï¸ CNS â‰¥ 80% â€” Riesgo de convulsión por O2. Reduce PO2 o tiempo.
                 </p>
               </div>
             )}
 
             {/* Reference table */}
             <div className="bg-ocean-mid rounded-xl p-3">
-              <p className="text-[10px] font-semibold text-text-secondary mb-2">Límites CNS por PO2</p>
+              <p className="text-[10px] font-semibold text-text-secondary mb-2">Lí­mites CNS por PO2</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {Object.entries(cnsLimits).filter(([k]) => Number(k) >= 1.0).map(([po2, limit]) => (
                   <div key={po2} className="bg-ocean-dark rounded-lg px-2 py-1 text-center">
@@ -1111,7 +1111,7 @@ function CNSCalculator() {
   );
 }
 
-/* ─────────────── Router ─────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Router â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export default function CalculatorDetailPage() {
   const { slug } = useParams<{ slug: string }>();
 
@@ -1131,3 +1131,4 @@ export default function CalculatorDetailPage() {
     default: return <Navigate to="/calc-tools" replace />;
   }
 }
+

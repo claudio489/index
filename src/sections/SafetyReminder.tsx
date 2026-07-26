@@ -1,4 +1,4 @@
-import { HeartPulse } from 'lucide-react';
+﻿import { HeartPulse } from 'lucide-react';
 
 export default function SafetyReminder() {
   return (
@@ -12,9 +12,11 @@ export default function SafetyReminder() {
           </p>
         </div>
         <p className="text-[10px] text-text-tertiary">
-          PADI es marca registrada. INDEX by DiveSpot no está afiliada oficialmente con PADI.
+          PADI es marca registrada. Dive Tools no está afiliada oficialmente con PADI.
         </p>
       </div>
     </section>
   );
 }
+
+

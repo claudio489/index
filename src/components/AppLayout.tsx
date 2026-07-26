@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { LogOut, User } from 'lucide-react';
 import BottomNav from './BottomNav';
 import PWAInstallButton from './PWAInstallButton';
-import { useSessionStore } from '@/stores/useSessionStore';
+import { useDivespotAuthStore } from '@/stores/useDivespotAuthStore';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -11,29 +11,31 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
-  const token = useSessionStore(s => s.token);
-  const logout = useSessionStore(s => s.logout);
+  const email = useDivespotAuthStore(s => s.email);
+  const profile = useDivespotAuthStore(s => s.profile);
+  const signOut = useDivespotAuthStore(s => s.signOut);
+
+  const displayName = profile?.full_name || profile?.name || email || '';
 
   return (
     <div className="min-h-screen bg-deep-ocean flex justify-center">
       <div className="w-full max-w-[480px] min-h-screen bg-deep-ocean relative flex flex-col shadow-2xl">
-        {/* Top bar with user info */}
         <div className="sticky top-0 z-40 bg-deep-ocean/90 backdrop-blur-md border-b border-ocean-surface/20">
           <div className="flex items-center justify-between h-12 px-4">
             <div className="flex items-center gap-2">
-              <img src="./icon-crab.png" alt="INDEX" className="w-7 h-7 rounded-lg" />
-              <span className="text-padi-blue font-bold text-sm">INDEX</span>
+              <img src="./logo-header.png" alt="Dive Tools" className="w-7 h-7 rounded-lg" />
+              <span className="text-padi-blue font-bold text-sm">Dive Tools</span>
             </div>
 
-            {token && (
+            {displayName && (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ocean-mid/50">
                   <User size={12} className="text-padi-blue" />
                   <span className="text-[10px] text-text-secondary font-medium max-w-[100px] truncate">
-                    {token.name}
+                    {displayName}
                   </span>
                 </div>
-                <button onClick={logout}
+                <button onClick={signOut}
                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-alert-red/10 transition-colors"
                   aria-label="Salir">
                   <LogOut size={16} className="text-text-tertiary" />
@@ -43,7 +45,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
         </div>
 
-        {/* Main content */}
         <main className="flex-1 pb-20 overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div

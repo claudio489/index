@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { Ruler, Hourglass, Gauge, FlaskConical, Wind, ArrowDownToLine } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { calculators } from '@/data/calculators';
@@ -58,3 +58,4 @@ export default function CalculatorsPage() {
     </div>
   );
 }
+

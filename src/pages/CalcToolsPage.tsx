@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
@@ -14,14 +14,15 @@ const allItems = [
   { slug: 'ead', name: 'EAD / PEA', desc: 'Profundidad Equivalente al Aire para planificacion con Nitrox.', icon: 'ArrowDownToLine', color: '#4DA3FF', cat: 'Seguridad' },
   // Herramientas
   { slug: 'tabla-rdp', name: 'Tabla RDP', desc: 'Tabla PADI RDP completa con limites de no-descompresion.', icon: 'Table', color: '#0070D3', cat: 'Referencia' },
-  { slug: 'conversor', name: 'Conversor', desc: 'Conversion entre metros/pies, bar/psi, °C/°F.', icon: 'ArrowLeftRight', color: '#94B8C9', cat: 'Utilidad' },
+  { slug: 'conversor', name: 'Conversor', desc: 'Conversion entre metros/pies, bar/psi, Â°C/Â°F.', icon: 'ArrowLeftRight', color: '#94B8C9', cat: 'Utilidad' },
   { slug: 'checklist', name: 'Checklist', desc: 'Lista de verificacion de equipo antes del buceo.', icon: 'ClipboardCheck', color: '#2E8B57', cat: 'Pre-buceo' },
-  { slug: 'log', name: 'Log de Buceos', desc: 'Registro de inmersiones con estadisticas y historial.', icon: 'BookMarked', color: '#FFD700', cat: 'Registro' },
+  { slug: 'bitacora', name: 'Log de Buceos', desc: 'Registro de inmersiones con estadisticas y historial.', icon: 'BookMarked', color: '#FFD700', cat: 'Registro' },
+  { slug: 'expediciones', name: 'Expediciones', desc: 'Descubre y unete a expediciones de buceo organizadas. Isla de Pascua y mas destinos.', icon: 'Compass', color: '#00d4ff', cat: 'Expedicion' },
   { slug: 'mod-tabla', name: 'Tabla MOD', desc: 'Tabla rapida de MOD para todas las mezclas comunes.', icon: 'Grid3x3', color: '#0070D3', cat: 'Referencia' },
   { slug: 'cns', name: 'Calc. CNS', desc: 'Calculo de toxicidad por oxigeno acumulada (CNS%).', icon: 'Activity', color: '#F23D4E', cat: 'Seguridad' },
 ];
 
-const categoryFilters = ['Todas', 'Planificacion', 'Tecnico', 'Seguridad', 'Referencia', 'Pre-buceo', 'Registro', 'Utilidad'];
+const categoryFilters = ['Todas', 'Planificacion', 'Tecnico', 'Seguridad', 'Referencia', 'Pre-buceo', 'Registro', 'Utilidad', 'Expedicion'];
 
 export default function CalcToolsPage() {
   const [filter, setFilter] = useState('Todas');
@@ -79,7 +80,7 @@ export default function CalcToolsPage() {
               transition={{ duration: 0.2, delay: index * 0.04 }}
             >
               <Link
-                to={`/calculadoras/${item.slug}`}
+                to={item.slug === 'bitacora' ? '/bitacora' : `/calculadoras/${item.slug}`}
                 className="block bg-ocean-dark rounded-2xl shadow-card p-4 h-full active:scale-[0.97] transition-transform hover:-translate-y-0.5 hover:shadow-elevated"
               >
                 <div
@@ -107,3 +108,6 @@ export default function CalcToolsPage() {
     </div>
   );
 }
+
+
+

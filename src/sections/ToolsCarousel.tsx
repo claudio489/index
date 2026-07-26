@@ -1,10 +1,11 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { getIcon } from '@/lib/icons';
 import { Link } from 'react-router-dom';
 import SectionHeader from '@/components/SectionHeader';
 import ScrollableRow from '@/components/ScrollableRow';
 
 const toolsList = [
+  { slug: 'expediciones', name: 'Expediciones', icon: 'Compass', color: '#00d4ff', category: 'Expedición' },
   { slug: 'tabla-rdp', name: 'Tabla RDP', icon: 'Table', color: '#0070D3', category: 'Referencia' },
   { slug: 'conversor', name: 'Conversor', icon: 'ArrowLeftRight', color: '#94B8C9', category: 'Utilidad' },
   { slug: 'checklist', name: 'Checklist', icon: 'ClipboardCheck', color: '#2E8B57', category: 'Pre-buceo' },
@@ -52,3 +53,4 @@ export default function ToolsCarousel() {
     </section>
   );
 }
+

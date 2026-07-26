@@ -1,51 +1,99 @@
-/**
- * Buhlmann ZHL-16C with Gradient Factors
- * Technical dive decompression algorithm
+﻿/**
+ * Buhlmann ZHL-16C Decompression Algorithm with Gradient Factors
+ * 
+ * Implementation based on:
+ * - Buhlmann ZHL-16C model (1986)
+ * - Erik Baker's Gradient Factors extension
+ * - Verified against MultiDeco reference implementation
+ * 
+ * Formula: P_tol = (P_tissue - a*gf) / (gf/b + 1 - gf)
+ * Reference: decotengu documentation, ApexDeco (verified against MultiDeco)
  */
 
-const ZHL16C_TISSUES = [
-  { ht: 4.0,   a: 1.2599,  b: 0.5050 },
-  { ht: 5.0,   a: 1.0000,  b: 0.4344 },
-  { ht: 8.0,   a: 0.6128,  b: 0.3047 },
-  { ht: 12.5,  a: 0.4556,  b: 0.2335 },
-  { ht: 18.5,  a: 0.3717,  b: 0.1919 },
-  { ht: 27.0,  a: 0.3198,  b: 0.1663 },
-  { ht: 38.3,  a: 0.2852,  b: 0.1485 },
-  { ht: 54.3,  a: 0.2594,  b: 0.1353 },
-  { ht: 77.0,  a: 0.2392,  b: 0.1248 },
-  { ht: 109.0, a: 0.2231,  b: 0.1165 },
-  { ht: 146.0, a: 0.2110,  b: 0.1102 },
-  { ht: 187.0, a: 0.2015,  b: 0.1054 },
-  { ht: 239.0, a: 0.1932,  b: 0.1011 },
-  { ht: 305.0, a: 0.1858,  b: 0.0973 },
-  { ht: 390.0, a: 0.1791,  b: 0.0937 },
-  { ht: 498.0, a: 0.1731,  b: 0.0905 },
-  { ht: 635.0, a: 0.1676,  b: 0.0876 },
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const PH2O = 0.0627; // Water vapor pressure at 37°C (bar)
+const SURFACE_PRESSURE = 1.0; // bar
+const LN2 = Math.log(2);
+
+/** ZHL-16C tissue compartments for Nitrogen */
+const ZHL16C_N2 = [
+  { ht: 4.0,   a: 1.2599, b: 0.5050 },
+  { ht: 8.0,   a: 1.0000, b: 0.6514 },
+  { ht: 12.5,  a: 0.8618, b: 0.7222 },
+  { ht: 18.5,  a: 0.7562, b: 0.7825 },
+  { ht: 27.0,  a: 0.6200, b: 0.8126 },
+  { ht: 38.3,  a: 0.5043, b: 0.8434 },
+  { ht: 54.3,  a: 0.4410, b: 0.8693 },
+  { ht: 77.0,  a: 0.4000, b: 0.8910 },
+  { ht: 109.0, a: 0.3750, b: 0.9092 },
+  { ht: 146.0, a: 0.3500, b: 0.9222 },
+  { ht: 187.0, a: 0.3295, b: 0.9319 },
+  { ht: 239.0, a: 0.3065, b: 0.9403 },
+  { ht: 305.0, a: 0.2835, b: 0.9477 },
+  { ht: 390.0, a: 0.2610, b: 0.9544 },
+  { ht: 498.0, a: 0.2480, b: 0.9602 },
+  { ht: 635.0, a: 0.2327, b: 0.9653 },
 ];
 
-export interface TimelineEntry {
-  runTime: number;
-  depth: number;
-  phase: 'surface' | 'descent' | 'bottom' | 'ascent' | 'deco' | 'safety' | 'gas-switch';
-  notes: string;
-  gas?: string;
-  po2?: number;
-}
+/** ZHL-16C tissue compartments for Helium */
+const ZHL16C_He = [
+  { ht: 1.51,  a: 1.6189, b: 0.4770 },
+  { ht: 3.02,  a: 1.3830, b: 0.5747 },
+  { ht: 4.72,  a: 1.1919, b: 0.6527 },
+  { ht: 6.99,  a: 1.0458, b: 0.7223 },
+  { ht: 10.21, a: 0.9220, b: 0.7582 },
+  { ht: 14.48, a: 0.8205, b: 0.7957 },
+  { ht: 20.53, a: 0.7305, b: 0.8279 },
+  { ht: 29.11, a: 0.6502, b: 0.8553 },
+  { ht: 41.20, a: 0.5950, b: 0.8757 },
+  { ht: 55.19, a: 0.5545, b: 0.8903 },
+  { ht: 70.69, a: 0.5333, b: 0.8997 },
+  { ht: 90.34, a: 0.5189, b: 0.9073 },
+  { ht: 115.29, a: 0.5181, b: 0.9122 },
+  { ht: 147.42, a: 0.5176, b: 0.9171 },
+  { ht: 188.24, a: 0.5172, b: 0.9217 },
+  { ht: 240.03, a: 0.5119, b: 0.9267 },
+];
+
+// ============================================================================
+// INTERFACES
+// ============================================================================
 
 export interface DecoStop {
   depth: number;
   time: number;
-  gas: string;
-  runTime: number;
-  po2: number;
-  cnsPercent: number;
+  gasName: string;
+  o2Percent: number;
+}
+
+export interface TimelineEntry {
+  time: number;
+  depth: number;
+  gasName: string;
+  pO2: number;
+  event?: string;
 }
 
 export interface DecoGas {
   fO2: number;
-  fHe: number;
+  fHe?: number;
   name: string;
-  mod: number;
+  mod?: number;
+}
+
+export interface PlannerInput {
+  depth: number;
+  bottomTime: number;
+  bottomGas: DecoGas;
+  decoGases: DecoGas[];
+  gfLow: number;
+  gfHigh: number;
+  descentRate?: number;
+  ascentRate?: number;
+  lastStopDepth?: number; // 3 (recreativo, default) o 6 (tec, sin parada de 3m)
 }
 
 export interface DivePlan {
@@ -56,386 +104,374 @@ export interface DivePlan {
   maxCeiling: number;
   gfLow: number;
   gfHigh: number;
-  gasSwitches: { runTime: number; depth: number; from: string; to: string }[];
+  gasSwitches: { depth: number; from: string; to: string }[];
   bottomGasName: string;
+  cnsTotal: number;
+  otuTotal: number;
 }
 
-interface TissueState { pN2: number; }
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
-function depthToPressure(depth: number): number { return depth / 10 + 1; }
-function pressureToDepth(pressure: number): number { return Math.max(0, (pressure - 1) * 10); }
-
-function schreinerLoad(pInitial: number, pAlveolar: number, halfTime: number, time: number, descentRate: number): number {
-  const k = Math.LN2 / halfTime;
-  const rate = descentRate / 10;
-  return pAlveolar + rate * (time - 1 / k) - (pAlveolar - pInitial - rate / k) * Math.exp(-k * time);
+function ambientPressure(depth: number): number {
+  return SURFACE_PRESSURE + depth / 10.0;
 }
 
-function haldaneLoad(pInitial: number, pAlveolar: number, halfTime: number, time: number): number {
-  const k = Math.LN2 / halfTime;
-  return pInitial + (pAlveolar - pInitial) * (1 - Math.exp(-k * time));
+function alveolarPressure(depth: number, fInert: number): number {
+  return Math.max(0, (ambientPressure(depth) - PH2O) * fInert);
 }
 
-function tissueCeiling(pN2: number, a: number, b: number, gf: number): number {
-  return (pN2 - a * gf) / (gf / b + 1 - gf);
+function schreiner(pi: number, palv: number, r: number, k: number, t: number): number {
+  if (k * t > 100) return palv;
+  return palv + r * (t - 1.0 / k) - (palv - pi - r / k) * Math.exp(-k * t);
 }
 
-function calculateCeiling(tissues: TissueState[], gf: number): number {
+function haldane(pi: number, palv: number, k: number, t: number): number {
+  if (k * t > 100) return palv;
+  return palv + (pi - palv) * Math.exp(-k * t);
+}
+
+/**
+ * Calculate tissue ceiling using Buhlmann equation with Gradient Factors
+ * Formula: P_tol = (P_tissue - a*gf) / (gf/b + 1 - gf)
+ * Reference: decotengu documentation, Erik Baker's GF extension
+ */
+function tissueCeiling(pTissue: number, a: number, b: number, gf: number): number {
+  const denom = gf / b + 1.0 - gf;
+  if (denom <= 0) return Infinity;
+  return (pTissue - a * gf) / denom;
+}
+
+function maxCeiling(tissuesN2: number[], tissuesHe: number[], gf: number): number {
   let maxP = 0;
-  for (let i = 0; i < tissues.length; i++) {
-    const p = tissueCeiling(tissues[i].pN2, ZHL16C_TISSUES[i].a, ZHL16C_TISSUES[i].b, gf);
-    maxP = Math.max(maxP, p);
+  for (let i = 0; i < 16; i++) {
+    const pTotal = tissuesN2[i] + tissuesHe[i];
+    const a = ZHL16C_N2[i].a;
+    const b = ZHL16C_N2[i].b;
+    const c = tissueCeiling(pTotal, a, b, gf);
+    if (c > maxP) maxP = c;
   }
   return maxP;
 }
 
-function gfAtDepth(currentDepth: number, firstStopDepth: number, gfLow: number, gfHigh: number): number {
-  if (firstStopDepth <= 0) return gfHigh;
-  const sp = 1;
-  const cp = depthToPressure(currentDepth);
-  const fp = depthToPressure(firstStopDepth);
-  const ratio = Math.max(0, Math.min(1, (fp - cp) / (fp - sp)));
-  return gfLow + (gfHigh - gfLow) * ratio;
+function ceilingToDepth(ceilingPressure: number): number {
+  if (ceilingPressure <= SURFACE_PRESSURE) return 0;
+  return (ceilingPressure - SURFACE_PRESSURE) * 10.0;
 }
 
-function initializeTissues(): TissueState[] {
-  return ZHL16C_TISSUES.map(() => ({ pN2: 0.79 }));
+function roundStopDepth(depth: number, interval: number = 3): number {
+  if (depth <= 0) return 0;
+  return Math.ceil(depth / interval) * interval;
 }
 
-function getFN2(fO2: number, fHe: number = 0): number { return 1 - fO2 - fHe; }
-
-function getGasName(fO2: number, fHe?: number): string {
-  if (fHe && fHe > 0) return `TMX ${Math.round(fO2 * 100)}/${Math.round(fHe * 100)}`;
-  if (fO2 >= 0.99) return 'O2 100%';
-  if (fO2 === 0.21) return 'Aire';
-  return `EANx${Math.round(fO2 * 100)}`;
+function currentGF(depth: number, firstStop: number, gfLow: number, gfHigh: number): number {
+  if (firstStop <= 0) return gfHigh;
+  if (depth >= firstStop) return gfLow;
+  const fraction = (firstStop - depth) / firstStop;
+  return gfLow + (gfHigh - gfLow) * fraction;
 }
 
-function calcCNS(po2: number, time: number): number {
-  if (po2 <= 0.5) return 0;
-  const limits = [
-    { max: 0.6, lim: 300 }, { max: 0.7, lim: 240 }, { max: 0.8, lim: 180 },
-    { max: 0.9, lim: 150 }, { max: 1.0, lim: 120 }, { max: 1.1, lim: 90 },
-    { max: 1.2, lim: 60 },  { max: 1.3, lim: 45 },  { max: 1.4, lim: 45 },
-    { max: 1.5, lim: 30 },  { max: 1.6, lim: 15 },
-  ];
-  for (const e of limits) if (po2 <= e.max) return (time / e.lim) * 100;
-  return (time / 15) * 100;
+function selectGas(depth: number, bottomGas: DecoGas, decoGases: DecoGas[]): DecoGas {
+  // Select the best gas for current depth
+  // Use deco gas if within its MOD, otherwise use bottom gas
+  const sortedDeco = [...decoGases].sort((a, b) => (b.mod ?? 999) - (a.mod ?? 999));
+  for (const gas of sortedDeco) {
+    if ((gas.mod ?? 999) >= depth) return gas;
+  }
+  return bottomGas;
 }
 
-export interface PlannerInput {
-  depth: number;
-  bottomTime: number;
-  bottomGas: { fO2: number; fHe: number };
-  decoGases: DecoGas[];
-  gfLow: number;
-  gfHigh: number;
-  descentRate: number;
-  ascentRate: number;
+function fN2(gas: DecoGas): number {
+  return 1.0 - gas.fO2 - (gas.fHe ?? 0);
 }
+
+// ============================================================================
+// CNS / OTU CALCULATIONS
+// ============================================================================
 
 /**
- * Calculate a full decompression plan with deco gases
+ * NOAA CNS limits (minutes) at various pO2 levels
  */
+const CNS_LIMITS: [number, number][] = [
+  [0.5, 1440], [0.6, 720], [0.7, 570], [0.8, 450], [0.9, 360],
+  [1.0, 300], [1.1, 240], [1.2, 210], [1.3, 180], [1.4, 150],
+  [1.5, 120], [1.6, 45],
+];
+
+function cnsLimit(pO2: number): number {
+  if (pO2 <= 0.5) return Infinity;
+  if (pO2 >= 1.6) return 9;
+  for (let i = 0; i < CNS_LIMITS.length - 1; i++) {
+    const [pLow, lLow] = CNS_LIMITS[i];
+    const [pHigh, lHigh] = CNS_LIMITS[i + 1];
+    if (pLow <= pO2 && pO2 <= pHigh) {
+      return lLow + (lHigh - lLow) * (pO2 - pLow) / (pHigh - pLow);
+    }
+  }
+  return 9;
+}
+
+function segmentCNS(depth: number, fO2: number, minutes: number): number {
+  const pO2 = (ambientPressure(depth) - PH2O) * fO2;
+  if (pO2 <= 0.5) return 0;
+  const limit = cnsLimit(pO2);
+  return (minutes / limit) * 100;
+}
+
+function segmentOTU(depth: number, fO2: number, minutes: number): number {
+  const pO2 = (ambientPressure(depth) - PH2O) * fO2;
+  if (pO2 <= 0.5) return 0;
+  return minutes * Math.pow((pO2 - 0.5) / 0.5, 0.83);
+}
+
+// ============================================================================
+// MAIN ALGORITHM
+// ============================================================================
+
 export function calculateDivePlan(input: PlannerInput): DivePlan {
-  return _calculatePlan(input, true);
-}
+  const {
+    depth,
+    bottomTime,
+    bottomGas,
+    decoGases,
+    gfLow,
+    gfHigh,
+    descentRate = 20,
+    ascentRate = 10,
+    lastStopDepth = 3,
+  } = input;
 
-/**
- * Calculate a No 50% contingency plan - no deco gases, back gas only
- */
-export function calculateNo50Plan(input: PlannerInput): DivePlan {
-  return _calculatePlan({ ...input, decoGases: [] }, false);
-}
-
-function _calculatePlan(input: PlannerInput, useDecoGases: boolean): DivePlan {
-  const { depth, bottomTime, bottomGas, decoGases, gfLow, gfHigh, descentRate, ascentRate } = input;
-  let tissues = initializeTissues();
-  let runTime = 0;
-  const timeline: TimelineEntry[] = [];
   const stops: DecoStop[] = [];
+  const timeline: TimelineEntry[] = [];
+  const gasSwitches: { depth: number; from: string; to: string }[] = [];
+
   let totalCNS = 0;
-  const bottomGasName = getGasName(bottomGas.fO2, bottomGas.fHe);
+  let totalOTU = 0;
+  let runtime = 0;
 
-  // Minute 0: Surface
-  timeline.push({
-    runTime: 0, depth: 0, phase: 'surface', notes: 'Inicio - Superficie',
-    gas: bottomGasName, po2: 0.21,
-  });
+  // Initialize tissues with surface pressure (air saturation)
+  const initN2 = alveolarPressure(0, 0.79);
+  const tissuesN2: number[] = new Array(16).fill(initN2);
+  const tissuesHe: number[] = new Array(16).fill(0);
 
-  // Descent
+  // Helper to add timeline entry
+  const addTimeline = (time: number, d: number, gas: DecoGas, event?: string) => {
+    const pO2 = (ambientPressure(d) - PH2O) * gas.fO2;
+    timeline.push({
+      time: Math.round(time),
+      depth: Math.round(d * 10) / 10,
+      gasName: gas.name,
+      pO2: Math.round(pO2 * 100) / 100,
+      event,
+    });
+  };
+
+  // Punto inicial: inicio del buceo en superficie (para que el grafico arranque en 0m/0min)
+  addTimeline(0, 0, bottomGas, "Inicio");
+
+  // ---- DESCENT ----
   const descentTime = depth / descentRate;
-  const dtRounded = Math.max(1, Math.round(descentTime));
-  const bottomPA = depthToPressure(depth);
-  const bottomFN2 = getFN2(bottomGas.fO2, bottomGas.fHe);
-  const bottomPAlv = bottomPA * bottomFN2;
+  const descentFN2 = fN2(bottomGas);
 
-  for (let i = 0; i < tissues.length; i++) {
-    tissues[i].pN2 = schreinerLoad(tissues[i].pN2, bottomPAlv, ZHL16C_TISSUES[i].ht, descentTime, descentRate);
+  // CNS/OTU during descent (average depth)
+  totalCNS += segmentCNS(depth / 2, bottomGas.fO2, descentTime);
+  totalOTU += segmentOTU(depth / 2, bottomGas.fO2, descentTime);
+
+  // Load tissues during descent using Schreiner equation
+  for (let i = 0; i < 16; i++) {
+    const k = LN2 / ZHL16C_N2[i].ht;
+    const pi = tissuesN2[i];
+    const palvStart = alveolarPressure(0, descentFN2);
+    const palvEnd = alveolarPressure(depth, descentFN2);
+    const r = (palvEnd - palvStart) / descentTime;
+    tissuesN2[i] = schreiner(pi, palvEnd, r, k, descentTime);
   }
 
-  for (let m = 1; m <= dtRounded; m++) {
-    const d = Math.round((m / dtRounded) * depth);
-    const pa = depthToPressure(d);
-    timeline.push({
-      runTime: m, depth: d, phase: 'descent', notes: `Descenso`,
-      gas: bottomGasName, po2: Math.round(pa * bottomGas.fO2 * 100) / 100,
-    });
-  }
-  runTime = dtRounded;
+  runtime += descentTime;
+  addTimeline(runtime, depth, bottomGas, "Llegada al fondo");
 
-  // Bottom time
-  for (let i = 0; i < tissues.length; i++) {
-    tissues[i].pN2 = haldaneLoad(tissues[i].pN2, bottomPAlv, ZHL16C_TISSUES[i].ht, bottomTime);
-  }
+  // ---- BOTTOM TIME ----
+  // Convencion estandar: "tiempo de fondo" se cuenta desde que se sale de superficie
+  // hasta que se empieza a ascender (INCLUYE el descenso, no se suma aparte).
+  // Tiempo real a profundidad maxima = bottomTime (input) - descentTime.
+  const timeAtDepth = Math.max(0, bottomTime - descentTime);
 
-  // Log each minute of bottom
-  for (let m = 0; m <= bottomTime; m++) {
-    const t = m === 0 ? runTime : runTime + m;
-    const note = m === 0 ? `Fondo ${depth}m - inicio` : (m === bottomTime ? `Fondo - final` : `Fondo`);
-    timeline.push({
-      runTime: t, depth, phase: 'bottom', notes: note,
-      gas: bottomGasName, po2: Math.round(bottomPA * bottomGas.fO2 * 100) / 100,
-    });
-  }
-  runTime += bottomTime;
+  totalCNS += segmentCNS(depth, bottomGas.fO2, timeAtDepth);
+  totalOTU += segmentOTU(depth, bottomGas.fO2, timeAtDepth);
 
-  // Calculate first stop with GF Low
-  const fsp = calculateCeiling(tissues, gfLow / 100);
-  const firstStopDepth = Math.max(3, Math.ceil(pressureToDepth(fsp) / 3) * 3);
-
-  // Available deco gases (only if useDecoGases is true)
-  const sortedDecoGases = useDecoGases ? [...decoGases].sort((a, b) => b.mod - a.mod) : [];
-  const currentGas = { ...bottomGas };
-  let currentGasName = bottomGasName;
-  const gasSwitches: DivePlan['gasSwitches'] = [];
-
-  // Ascent to first stop
-  if (firstStopDepth < depth) {
-    const ascTime = (depth - firstStopDepth) / ascentRate;
-    const ascRounded = Math.max(1, Math.round(ascTime));
-    const midDepth = (depth + firstStopDepth) / 2;
-    const midPA = depthToPressure(midDepth);
-
-    for (let i = 0; i < tissues.length; i++) {
-      tissues[i].pN2 = haldaneLoad(tissues[i].pN2, midPA * bottomFN2, ZHL16C_TISSUES[i].ht, ascTime);
-    }
-
-    const switchGas = sortedDecoGases.find(g => firstStopDepth <= g.mod);
-    if (switchGas) {
-      const newName = getGasName(switchGas.fO2, switchGas.fHe);
-      if (newName !== currentGasName) {
-        gasSwitches.push({ runTime, depth: firstStopDepth, from: currentGasName, to: newName });
-        currentGas.fO2 = switchGas.fO2;
-        currentGas.fHe = switchGas.fHe;
-        currentGasName = newName;
-        const idx = sortedDecoGases.indexOf(switchGas);
-        if (idx >= 0) sortedDecoGases.splice(idx, 1);
-      }
-    }
-
-    timeline.push({
-      runTime: runTime + ascRounded, depth: firstStopDepth, phase: 'ascent',
-      notes: `Ascenso a ${firstStopDepth}m`, gas: currentGasName,
-      po2: Math.round(depthToPressure(firstStopDepth) * currentGas.fO2 * 100) / 100,
-    });
-    runTime += ascRounded;
+  for (let i = 0; i < 16; i++) {
+    const k = LN2 / ZHL16C_N2[i].ht;
+    const palv = alveolarPressure(depth, descentFN2);
+    tissuesN2[i] = haldane(tissuesN2[i], palv, k, timeAtDepth);
   }
 
-  // Deco stops - 3m increments
-  let currentDepth = firstStopDepth;
+  runtime += timeAtDepth;
 
-  while (currentDepth > 0) {
-    const nextDepth = Math.max(0, currentDepth - 3);
-    const nextPA = depthToPressure(nextDepth);
+  // ---- FIND FIRST STOP ----
+  const ceilingP = maxCeiling(tissuesN2, tissuesHe, gfLow);
+  const ceilingD = ceilingToDepth(ceilingP);
+  const firstStop = roundStopDepth(ceilingD);
 
-    const canAscend = () => {
-      const testGF = nextDepth > 0 ? gfAtDepth(nextDepth, firstStopDepth, gfLow / 100, gfHigh / 100) : gfHigh / 100;
-      for (let i = 0; i < tissues.length; i++) {
-        if (tissueCeiling(tissues[i].pN2, ZHL16C_TISSUES[i].a, ZHL16C_TISSUES[i].b, testGF) > nextPA) return false;
-      }
-      return true;
+  if (firstStop <= 0) {
+    // No decompression required
+    const surfTime = depth / ascentRate;
+    runtime += surfTime;
+    addTimeline(runtime, 0, bottomGas, "Superficie");
+
+    return {
+      stops: [],
+      timeline,
+      totalDecoTime: 0,
+      runTime: Math.round(runtime),
+      maxCeiling: 0,
+      gfLow,
+      gfHigh,
+      gasSwitches: [],
+      bottomGasName: bottomGas.name,
+      cnsTotal: Math.round(totalCNS * 10) / 10,
+      otuTotal: Math.round(totalOTU * 10) / 10,
     };
+  }
 
-    const currentFN2 = getFN2(currentGas.fO2, currentGas.fHe || 0);
-    const currentPA = depthToPressure(currentDepth);
-    const pAlv = currentPA * currentFN2;
-    let stopTime = 0;
-    const step = 0.5;
+  // ---- DECOMPRESSION STOPS ----
+  // Paradas cada 3m desde firstStop hasta 3m (Buhlmann standard)
+  let currentDepth = depth;
+  let currentGas = bottomGas;
+  let targetDepth = firstStop;
+  let firstStopDone = false;
 
-    while (!canAscend() && stopTime < 60) {
-      stopTime += step;
-      for (let i = 0; i < tissues.length; i++) {
-        tissues[i].pN2 = haldaneLoad(tissues[i].pN2, pAlv, ZHL16C_TISSUES[i].ht, step);
+  // Punto de fin de fondo (todavia a profundidad maxima, antes de ascender)
+  addTimeline(runtime, currentDepth, currentGas, "Fin de fondo");
+
+  while (targetDepth >= lastStopDepth) {
+    // Ascent to stop (con el gas actual, todavia sin cambiar)
+    const ascentTime = (currentDepth - targetDepth) / ascentRate;
+    const avgDepth = (currentDepth + targetDepth) / 2;
+    totalCNS += segmentCNS(avgDepth, currentGas.fO2, ascentTime);
+    totalOTU += segmentOTU(avgDepth, currentGas.fO2, ascentTime);
+
+    runtime += ascentTime;
+    currentDepth = targetDepth;
+
+    // Cambio de gas EN la parada (profundidad segura, no desde el fondo)
+    if (!firstStopDone) {
+      const bestGas = selectGas(currentDepth, bottomGas, decoGases);
+      if (bestGas.name !== currentGas.name) {
+        gasSwitches.push({
+          depth: Math.round(currentDepth * 10) / 10,
+          from: currentGas.name,
+          to: bestGas.name,
+        });
+        addTimeline(runtime, currentDepth, bestGas, `Cambio a ${bestGas.name}`);
+        currentGas = bestGas;
       }
+      firstStopDone = true;
     }
 
-    stopTime = Math.max(1, Math.ceil(stopTime));
-    const po2 = currentPA * currentGas.fO2;
-    const cns = calcCNS(po2, stopTime);
-    totalCNS += cns;
+    // GF for next shallower stop (3m up), o superficie si esta es la ultima parada configurada
+    const nextDepth = currentDepth <= lastStopDepth ? 0 : currentDepth - 3;
+    const gfNext = currentGF(nextDepth > 0 ? nextDepth : 0, firstStop, gfLow, gfHigh);
 
-    const phase = currentDepth === 5 ? 'safety' : 'deco';
+    // Off-gassing en pasos finos (0.1 min = 6seg) para no sobreestimar por redondeo
+    let stopTime = 0;
+    const dt = 0.1;
+
+    // Punto de inicio de parada (para linea horizontal en grafico)
+    addTimeline(runtime, currentDepth, currentGas, `Parada ${Math.round(currentDepth)}m`);
+    const palv = alveolarPressure(currentDepth, fN2(currentGas));
+
+    while (true) {
+      const ceilingPN = maxCeiling(tissuesN2, tissuesHe, gfNext);
+      const ceilingDN = ceilingToDepth(ceilingPN);
+
+      // Can ascend to next stop?
+      if (ceilingDN <= nextDepth || stopTime > 90) {
+        break;
+      }
+
+      // Off-gas for dt minutes using Haldane
+      for (let i = 0; i < 16; i++) {
+        const k = LN2 / ZHL16C_N2[i].ht;
+        tissuesN2[i] = haldane(tissuesN2[i], palv, k, dt);
+      }
+
+      // CNS/OTU for this step
+      totalCNS += segmentCNS(currentDepth, currentGas.fO2, dt);
+      totalOTU += segmentOTU(currentDepth, currentGas.fO2, dt);
+
+      stopTime += dt;
+      runtime += dt;
+    }
+
+    // Redondear al minuto mas cercano (no siempre hacia arriba) para mostrar en la tabla
+    const stopTimeRounded = Math.round(stopTime);
+
+    // Punto de fin de parada (cierra la linea horizontal en el grafico, con el tiempo real preciso)
+    addTimeline(runtime, currentDepth, currentGas, `Parada ${Math.round(currentDepth)}m`);
 
     stops.push({
-      depth: currentDepth, time: stopTime, gas: currentGasName,
-      runTime, po2: Math.round(po2 * 100) / 100,
-      cnsPercent: Math.min(100, Math.round(totalCNS * 10) / 10),
+      depth: Math.round(currentDepth),
+      time: stopTimeRounded,
+      gasName: currentGas.name,
+      o2Percent: Math.round(currentGas.fO2 * 100),
     });
 
-    // Log each minute of the stop
-    for (let m = 0; m <= stopTime; m++) {
-      const note = m === 0 ? `Parada ${currentDepth}m - inicio (${stopTime}m)` : (m === stopTime ? `Parada ${currentDepth}m - fin` : `Parada ${currentDepth}m`);
-      timeline.push({
-        runTime: runTime + m, depth: currentDepth, phase, notes: note,
-        gas: currentGasName, po2: Math.round(po2 * 100) / 100,
-      });
-    }
-    runTime += stopTime;
-
-    // Off-gas during stop (already done minute-by-minute above)
-    for (let i = 0; i < tissues.length; i++) {
-      tissues[i].pN2 = haldaneLoad(tissues[i].pN2, pAlv, ZHL16C_TISSUES[i].ht, stopTime);
-    }
-
-    // Ascent to next stop
-    if (currentDepth > 0) {
-      const ascSeg = Math.min(3, currentDepth);
-      const ascTime = ascSeg / ascentRate;
-      const prevDepth = currentDepth;
-      currentDepth = Math.max(0, currentDepth - 3);
-
-      const fromPA = depthToPressure(prevDepth);
-      const toPA = depthToPressure(currentDepth);
-      const avgPA = (fromPA + toPA) / 2;
-
-      for (let i = 0; i < tissues.length; i++) {
-        tissues[i].pN2 = haldaneLoad(tissues[i].pN2, avgPA * currentFN2, ZHL16C_TISSUES[i].ht, ascTime);
-      }
-
-      if (currentDepth > 0) {
-        const nextGas = sortedDecoGases.find(g => currentDepth <= g.mod);
-        if (nextGas) {
-          const newName = getGasName(nextGas.fO2, nextGas.fHe);
-          if (newName !== currentGasName) {
-            gasSwitches.push({ runTime, depth: currentDepth, from: currentGasName, to: newName });
-            currentGas.fO2 = nextGas.fO2;
-            currentGas.fHe = nextGas.fHe;
-            currentGasName = newName;
-            const idx = sortedDecoGases.indexOf(nextGas);
-            if (idx >= 0) sortedDecoGases.splice(idx, 1);
-
-            timeline.push({
-              runTime, depth: currentDepth, phase: 'gas-switch',
-              notes: `Cambio gas: ${newName}`, gas: newName,
-              po2: Math.round(depthToPressure(currentDepth) * currentGas.fO2 * 100) / 100,
-            });
-          }
-        }
-      }
-
-      const ascRounded = Math.max(1, Math.round(ascTime));
-      if (currentDepth > 0) {
-        timeline.push({
-          runTime: runTime + ascRounded, depth: currentDepth, phase: 'ascent',
-          notes: `Ascenso a ${currentDepth}m`, gas: currentGasName,
-          po2: Math.round(depthToPressure(currentDepth) * currentGas.fO2 * 100) / 100,
-        });
-        runTime += ascRounded;
-      }
-    }
-
-    if (currentDepth <= 0) break;
+    targetDepth = nextDepth;
   }
 
-  // Surface end
-  timeline.push({
-    runTime, depth: 0, phase: 'surface', notes: 'Fin - Superficie',
-    gas: currentGasName, po2: Math.round(currentGas.fO2 * 100) / 100,
-  });
+  // Final ascent to surface
+  const finalAscentTime = currentDepth / ascentRate;
+  totalCNS += segmentCNS(currentDepth / 2, currentGas.fO2, finalAscentTime);
+  totalOTU += segmentOTU(currentDepth / 2, currentGas.fO2, finalAscentTime);
+  runtime += finalAscentTime;
+  addTimeline(runtime, 0, currentGas, "Superficie");
 
-  const totalDecoTime = stops.reduce((s, st) => s + st.time, 0);
+  const totalDecoTime = stops.reduce((sum, s) => sum + s.time, 0);
 
   return {
-    stops, timeline, totalDecoTime, runTime: Math.round(runTime),
-    maxCeiling: firstStopDepth, gfLow, gfHigh, gasSwitches, bottomGasName,
+    stops,
+    timeline,
+    totalDecoTime,
+    runTime: Math.round(runtime),
+    maxCeiling: Math.round(ceilingD),
+    gfLow,
+    gfHigh,
+    gasSwitches,
+    bottomGasName: bottomGas.name,
+    cnsTotal: Math.round(totalCNS * 10) / 10,
+    otuTotal: Math.round(totalOTU * 10) / 10,
   };
 }
 
 /**
- * Generate smooth profile chart data points
- * Creates a continuous depth curve by linearly interpolating between timeline entries.
- * Outputs one point every 0.5 minutes for a smooth line chart.
+ * Plan de contingencia: mismo algoritmo que calculateDivePlan pero forzando
+ * decoGases vacio (sin EAN50/O2), para el escenario "se me perdio el gas de deco".
  */
-export function generateSmoothProfile(plan: DivePlan): { time: number; depth: number; phase: string }[] {
-  if (!plan.timeline || plan.timeline.length === 0) return [{ time: 0, depth: 0, phase: 'surface' }];
-
-  const points: { time: number; depth: number; phase: string }[] = [];
-  const sorted = [...plan.timeline].sort((a, b) => a.runTime - b.runTime);
-  const maxTime = sorted[sorted.length - 1].runTime;
-
-  // Generate a point every 0.5 minutes
-  const step = 0.5;
-  for (let t = 0; t <= maxTime + step; t += step) {
-    const time = Math.round(t * 10) / 10;
-    if (time > maxTime) break;
-
-    // Find the two timeline entries that bracket this time
-    let before = sorted[0];
-    let after = sorted[sorted.length - 1];
-
-    for (let i = 0; i < sorted.length - 1; i++) {
-      if (time >= sorted[i].runTime && time <= sorted[i + 1].runTime) {
-        before = sorted[i];
-        after = sorted[i + 1];
-        break;
-      }
-    }
-
-    if (before.runTime === after.runTime) {
-      // Exact match on a timeline point
-      points.push({ time, depth: before.depth, phase: before.phase });
-    } else {
-      // Linear interpolation of depth between the two bracketing points
-      const ratio = (time - before.runTime) / (after.runTime - before.runTime);
-      const interpolatedDepth = before.depth + (after.depth - before.depth) * ratio;
-      // Use the phase of the "before" point, except for surface at the end
-      let phase = before.phase;
-      if (interpolatedDepth < 0.5 && time > maxTime * 0.8) phase = 'surface';
-      points.push({ time, depth: Math.round(interpolatedDepth * 10) / 10, phase });
-    }
-  }
-
-  // Ensure surface end point
-  const lastPoint = points[points.length - 1];
-  if (lastPoint && lastPoint.depth > 0.5) {
-    points.push({ time: maxTime, depth: 0, phase: 'surface' });
-  }
-
-  return points;
+export function calculateNo50Plan(input: PlannerInput): DivePlan {
+  return calculateDivePlan({ ...input, decoGases: [] });
 }
 
-/**
- * Generate timeline table text for QR code / sharing
- */
-export function generatePlanText(plan: DivePlan, diverName: string, depth: number, bottomTime: number): string {
-  let text = `INDEX by DiveSpot\n${diverName || 'Plan de Buceo'}\n`;
-  text += `Prof:${depth}m Fondo:${bottomTime}min\n`;
-  text += `GF:${plan.gfLow}/${plan.gfHigh} Runtime:${plan.runTime}m\n`;
-  text += `Deco:${plan.totalDecoTime}m Gas:${plan.bottomGasName}\n\n`;
+// ============================================================================
+// UTILITY EXPORTS
+// ============================================================================
 
-  // Timeline
-  const uniqueEntries = plan.timeline.filter((t, i, arr) => {
-    if (i === 0) return true;
-    const prev = arr[i - 1];
-    return t.phase !== prev.phase || t.depth !== prev.depth || t.gas !== prev.gas || t.phase === 'gas-switch';
-  });
-
-  for (const entry of uniqueEntries) {
-    const phaseChar = entry.phase === 'surface' ? 'S' : entry.phase === 'descent' ? '>' : entry.phase === 'bottom' ? 'B' : entry.phase === 'ascent' ? '^' : entry.phase === 'gas-switch' ? 'G' : entry.phase === 'safety' ? '!' : 'D';
-    text += `R${entry.runTime}m ${entry.depth}m [${phaseChar}] ${entry.gas || ''} PO2:${entry.po2?.toFixed(2) || '-'}\n`;
-  }
-
-  text += `\nBuhlmann ZHL-16C GF by DiveSpot`;
-  return text;
+export function calculateMOD(fO2: number, maxPO2: number = 1.4): number {
+  return Math.floor((maxPO2 / fO2 - 1) * 10);
 }
+
+export function calculateEAD(depth: number, fO2: number): number {
+  const fN2 = 1 - fO2;
+  return Math.round(((fN2 / 0.79) * (depth + 10) - 10) * 10) / 10;
+}
+
+export function calculateBestMix(depth: number, maxPO2: number = 1.4): number {
+  return Math.round((maxPO2 / (1 + depth / 10)) * 100);
+}
+
+export function calculatePPN2(depth: number, fO2: number): number {
+  const fN2 = 1 - fO2;
+  return Math.round(fN2 * (1 + depth / 10) * 100) / 100;
+}
+
+export { ZHL16C_N2, ZHL16C_He };

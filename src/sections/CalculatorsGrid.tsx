@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { Ruler, Hourglass, Gauge, FlaskConical } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SectionHeader from '@/components/SectionHeader';
@@ -49,3 +49,4 @@ export default function CalculatorsGrid() {
     </section>
   );
 }
+

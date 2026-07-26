@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { Calculator, CalendarDays, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getGreeting } from '@/lib/divingCalculations';
@@ -69,3 +69,4 @@ export default function HeroSection() {
     </section>
   );
 }
+

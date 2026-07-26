@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useSessionStore } from '@/stores/useSessionStore';
+import { useDivespotAuthStore } from '@/stores/useDivespotAuthStore';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,8 +9,8 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteProps) {
   const [checking, setChecking] = useState(true);
-  const isAuthenticated = useSessionStore(s => s.isAuthenticated);
-  const loadSession = useSessionStore(s => s.loadSession);
+  const isAuthenticated = useDivespotAuthStore(s => s.isAuthenticated);
+  const loadSession = useDivespotAuthStore(s => s.loadSession);
 
   useEffect(() => {
     loadSession().finally(() => setChecking(false));

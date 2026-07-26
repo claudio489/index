@@ -12,10 +12,16 @@ export interface AccessCode {
   id: string;
   name: string;
   codeHash: string;
+  code?: string;
+  encryptedCode?: string;
   courses: string[];
-  expiresAt: string; // ISO date string
+  expiresAt: string;
   createdAt: string;
   notes?: string;
+  role?: string;
+  isActive?: boolean;
+  deviceFp?: string;
+  deviceName?: string;
 }
 
 export interface SessionToken {
@@ -25,19 +31,16 @@ export interface SessionToken {
   codeId: string;
 }
 
-// Hash a string using SHA-256
 export function hash(str: string): string {
   return CryptoJS.SHA256(str).toString();
 }
 
-// Verify master PIN
 export function verifyMasterPin(pin: string): boolean {
   return hash(pin) === MASTER_PIN_HASH;
 }
 
-// Generate a random access code
 export function generateAccessCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = CODE_PREFIX;
   for (let i = 0; i < 6; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -45,11 +48,9 @@ export function generateAccessCode(): string {
   return code;
 }
 
-// Validate an access code against stored codes
 export function validateAccessCode(inputCode: string, storedCodes: AccessCode[]): AccessCode | null {
   const inputHash = hash(inputCode.toUpperCase());
   const now = new Date().toISOString();
-
   for (const code of storedCodes) {
     if (code.codeHash === inputHash && code.expiresAt > now) {
       return code;
@@ -58,7 +59,6 @@ export function validateAccessCode(inputCode: string, storedCodes: AccessCode[])
   return null;
 }
 
-// Create a session token from an access code
 export function createSessionToken(code: AccessCode): SessionToken {
   return {
     name: code.name,
@@ -68,12 +68,14 @@ export function createSessionToken(code: AccessCode): SessionToken {
   };
 }
 
-// Encrypt session token for storage
+// ===================================================================
+//  FIX: codeHash opcional con fallback a MASTER_PIN_HASH
+// ===================================================================
+
 export function encryptSession(token: SessionToken, codeHash: string): string {
   return CryptoJS.AES.encrypt(JSON.stringify(token), codeHash).toString();
 }
 
-// Decrypt session token from storage
 export function decryptSession(encrypted: string, codeHash: string): SessionToken | null {
   try {
     const decrypted = CryptoJS.AES.decrypt(encrypted, codeHash).toString(CryptoJS.enc.Utf8);
@@ -83,12 +85,27 @@ export function decryptSession(encrypted: string, codeHash: string): SessionToke
   }
 }
 
-// Check if session is still valid
+export function encryptCode(plainCode: string, codeHash?: string): string {
+  const key = codeHash || MASTER_PIN_HASH;
+  return CryptoJS.AES.encrypt(plainCode, key).toString();
+}
+
+export function decryptCode(encrypted: string, codeHash?: string): string | null {
+  try {
+    const key = codeHash || MASTER_PIN_HASH;
+    const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(CryptoJS.enc.Utf8);
+    return decrypted || null;
+  } catch {
+    return null;
+  }
+}
+
+// ===================================================================
+
 export function isSessionValid(token: SessionToken): boolean {
   return new Date(token.expiresAt) > new Date();
 }
 
-// Default codes for demo - pre-computed hash for INDEX-DEMO1
 const DEMO1_HASH = hash('INDEX-DEMO1');
 console.log('INDEX-DEMO1 hash:', DEMO1_HASH);
 
@@ -98,13 +115,12 @@ export const defaultAccessCodes: AccessCode[] = [
     name: 'Demo Alumno',
     codeHash: DEMO1_HASH,
     courses: ['enriched-air-nitrox', 'deep-diver', 'tec-40'],
-    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year for demo
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: new Date().toISOString(),
     notes: 'Cuenta demo - Usa el codigo INDEX-DEMO1',
   },
 ];
 
-// All available courses for admin selection
 export const availableCourses = [
   { id: 'enriched-air-nitrox', name: 'Enriched Air Nitrox' },
   { id: 'deep-diver', name: 'Deep Diver' },

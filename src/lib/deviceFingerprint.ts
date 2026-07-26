@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Device Fingerprint - Generates a unique device identifier
  * Used to bind access codes to specific devices, preventing code sharing
  * All computation is client-side, no external services
@@ -29,7 +29,7 @@ function getCanvasFingerprint(): string {
     ctx.fillRect(0, 0, 200, 50);
     ctx.fillStyle = '#0B1D2E';
     ctx.font = '16px "Inter", Arial, sans-serif';
-    ctx.fillText('INDEX by DiveSpot ' + String.fromCharCode(55357, 56843), 10, 30);
+    ctx.fillText('Dive Tools ' + String.fromCharCode(55357, 56843), 10, 30);
 
     // Draw some curves
     ctx.strokeStyle = '#FF7B2E';
@@ -99,3 +99,4 @@ export function isSameDevice(storedFp: string): boolean {
   const currentFp = getDeviceFingerprint();
   return currentFp === storedFp;
 }
+

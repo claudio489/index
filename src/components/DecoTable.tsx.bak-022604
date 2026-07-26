@@ -1,0 +1,244 @@
+import { Timer, ArrowDown, Anchor, Home, AlertTriangle } from 'lucide-react';
+import type { DecoStop, TimelineEntry } from '../lib/buhlmann';
+
+interface DecoTableProps {
+  timeline: TimelineEntry[];
+  stops: DecoStop[];
+  totalDecoTime: number;
+  runTime: number;
+}
+
+interface DisplayRow {
+  phase: 'desc' | 'bottom' | 'stop' | 'switch' | 'surf';
+  depth: number;
+  time: string;
+  gas: string;
+  pO2: number;
+  note?: string;
+}
+
+function calcPO2(depth: number, gasName: string): number {
+  const fO2 = gasName === 'EAN50' ? 0.5 : gasName === 'O2 80%' ? 0.8 : gasName === 'O2 100%' ? 1.0 : 0.21;
+  return Math.round(((1 + depth / 10 - 0.0627) * fO2) * 100) / 100;
+}
+
+function buildDisplayRows(timeline: TimelineEntry[], stops: DecoStop[]): DisplayRow[] {
+  const rows: DisplayRow[] = [];
+  if (!timeline || timeline.length < 2) return rows;
+
+  const maxDepth = Math.max(...timeline.map(t => t.depth));
+  let currentGas = timeline[0].gasName;
+  let phaseStartIdx = 0;
+  let lastGasSwitchIdx = -1;
+
+  for (let i = 1; i < timeline.length; i++) {
+    const prev = timeline[i - 1];
+    const curr = timeline[i];
+    const next = timeline[i + 1];
+
+    // Detectar gas switch
+    if (curr.gasName !== currentGas && i > lastGasSwitchIdx) {
+      const start = timeline[phaseStartIdx];
+      const duration = curr.time - start.time;
+      if (duration > 0.5) {
+        const prevPhase = detectPhase(start.depth, maxDepth, stops);
+        rows.push({
+          phase: prevPhase,
+          depth: Math.round(start.depth),
+          time: formatTime(duration),
+          gas: currentGas ?? 'Aire',
+          pO2: calcPO2(start.depth, currentGas ?? 'Aire'),
+        });
+      }
+      rows.push({
+        phase: 'switch',
+        depth: Math.round(curr.depth),
+        time: '-',
+        gas: curr.gasName ?? 'Aire',
+        pO2: calcPO2(curr.depth, curr.gasName ?? 'Aire'),
+        note: `Cambio a ${curr.gasName}`,
+      });
+      currentGas = curr.gasName;
+      lastGasSwitchIdx = i;
+      phaseStartIdx = i;
+      continue;
+    }
+
+    // Detectar cambio de fase basado en profundidad
+    const phaseChange = detectPhaseChange(prev, curr, next, maxDepth, stops);
+    if (phaseChange && i > phaseStartIdx + 1) {
+      const start = timeline[phaseStartIdx];
+      const duration = curr.time - start.time;
+      if (duration > 0.5) {
+        const phase = detectPhase(start.depth, maxDepth, stops);
+        if (phase !== 'stop') {
+          rows.push({
+            phase,
+            depth: Math.round(start.depth),
+            time: formatTime(duration),
+            gas: currentGas ?? 'Aire',
+            pO2: calcPO2(start.depth, currentGas ?? 'Aire'),
+          });
+        }
+      }
+      phaseStartIdx = i;
+    }
+  }
+
+  // Superficie
+  const last = timeline[timeline.length - 1];
+  if (last.depth === 0) {
+    rows.push({
+      phase: 'surf',
+      depth: 0,
+      time: `${Math.round(last.time)} min`,
+      gas: '-',
+      pO2: 0,
+    });
+  }
+
+  // Paradas desde stops[]
+  const stopRows: DisplayRow[] = stops.map(stop => ({
+    phase: 'stop' as const,
+    depth: stop.depth,
+    time: `${stop.time}:00`,
+    gas: stop.gasName ?? 'Aire',
+    pO2: calcPO2(stop.depth, stop.gasName ?? 'Aire'),
+  }));
+
+  // Merge: insertar paradas entre fondo/switch y superficie
+  const merged: DisplayRow[] = [];
+  let stopsInserted = false;
+  for (const row of rows) {
+    merged.push(row);
+    if ((row.phase === 'switch' || row.phase === 'bottom') && !stopsInserted) {
+      merged.push(...stopRows);
+      stopsInserted = true;
+    }
+  }
+  if (!stopsInserted && stopRows.length > 0) {
+    const surfIdx = merged.findIndex(r => r.phase === 'surf');
+    if (surfIdx >= 0) merged.splice(surfIdx, 0, ...stopRows);
+    else merged.push(...stopRows);
+  }
+
+  return merged;
+}
+
+function formatTime(minutes: number): string {
+  const m = Math.floor(minutes);
+  const s = Math.round((minutes - m) * 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+function detectPhase(depth: number, maxDepth: number, stops: DecoStop[]): DisplayRow['phase'] {
+  if (depth === 0) return 'surf';
+  if (depth >= maxDepth * 0.95) return 'bottom';
+  const isStopDepth = stops.some((s: DecoStop) => s.depth === depth || Math.abs(s.depth - depth) <= 3);
+  if (isStopDepth) return 'stop';
+  if (depth < maxDepth * 0.5) return 'stop';
+  return 'desc';
+}
+
+function detectPhaseChange(
+  prev: TimelineEntry,
+  curr: TimelineEntry,
+  next: TimelineEntry | undefined,
+  maxDepth: number,
+  _stops: DecoStop[]
+): boolean {
+  if (curr.depth >= maxDepth * 0.95 && prev.depth < curr.depth) return true;
+  if (curr.depth < prev.depth && prev.depth >= maxDepth * 0.95) return true;
+  if (curr.gasName !== prev.gasName) return true;
+  if (curr.depth === 0 && prev.depth > 0) return true;
+  if (next && Math.abs(curr.depth - prev.depth) > 5 && Math.abs(next.depth - curr.depth) < 2) return true;
+  return false;
+}
+
+function getPhaseIcon(phase: string) {
+  switch (phase) {
+    case 'desc': return <ArrowDown className="w-4 h-4 text-blue-400" />;
+    case 'bottom': return <Anchor className="w-4 h-4 text-cyan-400" />;
+    case 'stop': return <Timer className="w-4 h-4 text-amber-400" />;
+    case 'switch': return <AlertTriangle className="w-4 h-4 text-orange-400" />;
+    case 'surf': return <Home className="w-4 h-4 text-green-400" />;
+    default: return null;
+  }
+}
+
+function getPhaseLabel(phase: string) {
+  switch (phase) {
+    case 'desc': return 'DESC';
+    case 'bottom': return 'FONDO';
+    case 'stop': return 'PARADA';
+    case 'switch': return 'SWITCH';
+    case 'surf': return 'SUPERFICIE';
+    default: return phase;
+  }
+}
+
+function getPhaseClass(phase: string) {
+  switch (phase) {
+    case 'desc': return 'bg-blue-500/10 text-blue-300';
+    case 'bottom': return 'bg-cyan-500/10 text-cyan-300';
+    case 'stop': return 'bg-amber-500/10 text-amber-300';
+    case 'switch': return 'bg-orange-500/10 text-orange-300';
+    case 'surf': return 'bg-green-500/10 text-green-300';
+    default: return '';
+  }
+}
+
+export default function DecoTable({ timeline, stops, totalDecoTime, runTime }: DecoTableProps) {
+  const rows = buildDisplayRows(timeline, stops);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="bg-ocean-dark border border-ocean-surface/20 rounded-lg p-2">
+          <div className="text-text-secondary text-xs">Runtime</div>
+          <div className="text-text-primary text-lg font-bold">{runTime} min</div>
+        </div>
+        <div className="bg-ocean-dark border border-ocean-surface/20 rounded-lg p-2">
+          <div className="text-text-secondary text-xs">Deco</div>
+          <div className="text-amber-400 text-lg font-bold">{totalDecoTime} min</div>
+        </div>
+        <div className="bg-ocean-dark border border-ocean-surface/20 rounded-lg p-2">
+          <div className="text-text-secondary text-xs">Paradas</div>
+          <div className="text-text-primary text-lg font-bold">{stops.length}</div>
+        </div>
+      </div>
+
+      <div className="bg-ocean-dark border border-ocean-surface/20 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-ocean-surface/20 text-text-secondary text-xs">
+              <th className="text-left p-2">Fase</th>
+              <th className="text-right p-2">Prof</th>
+              <th className="text-right p-2">Tiempo</th>
+              <th className="text-left p-2">Gas</th>
+              <th className="text-right p-2">pO2</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className={`border-b border-ocean-surface/10 ${getPhaseClass(row.phase)}`}>
+                <td className="p-2 flex items-center gap-1.5">
+                  {getPhaseIcon(row.phase)}
+                  <span className="font-medium">{getPhaseLabel(row.phase)}</span>
+                </td>
+                <td className="text-right p-2 font-mono">{row.depth}m</td>
+                <td className="text-right p-2 font-mono">{row.time}</td>
+                <td className="p-2">{row.gas}</td>
+                <td className="text-right p-2 font-mono">
+                  <span className={row.pO2 > 1.4 ? 'text-red-400 font-bold' : row.pO2 > 1.2 ? 'text-yellow-400' : ''}>
+                    {row.pO2 > 0 ? row.pO2.toFixed(2) : '-'}
+                  </span>
+                  {row.pO2 > 1.4 && <span className="text-red-500 ml-1">!</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

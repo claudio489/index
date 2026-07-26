@@ -1,11 +1,11 @@
-import type { Calculator } from '@/types';
+﻿import type { Calculator } from '@/types';
 
 export const calculators: Calculator[] = [
   {
     id: 'mod',
     name: 'MOD',
     slug: 'mod',
-    description: 'Profundidad máxima operativa para cualquier mezcla de gas basada en PO2 límite.',
+    description: 'Profundidad máxima operativa para cualquier mezcla de gas basada en PO2 lí­mite.',
     icon: 'Ruler',
     color: '#0070D3',
     category: 'planificacion'
@@ -68,7 +68,7 @@ export const calculators: Calculator[] = [
     id: 'tabla-rdp',
     name: 'Tabla RDP',
     slug: 'tabla-rdp',
-    description: 'Tabla PADI RDP completa con límites de no-descompresión.',
+    description: 'Tabla PADI RDP completa con lí­mites de no-descompresión.',
     icon: 'Table',
     color: '#0070D3',
     category: 'herramientas'
@@ -95,7 +95,7 @@ export const calculators: Calculator[] = [
     id: 'cns',
     name: 'Calc. CNS',
     slug: 'cns',
-    description: 'Cálculo de toxicidad por oxígeno acumulada (CNS%).',
+    description: 'Cálculo de toxicidad por oxí­geno acumulada (CNS%).',
     icon: 'Activity',
     color: '#F23D4E',
     category: 'herramientas'
@@ -104,7 +104,7 @@ export const calculators: Calculator[] = [
     id: 'log',
     name: 'Log de Buceos',
     slug: 'log',
-    description: 'Registro de inmersiones con estadísticas y historial.',
+    description: 'Registro de inmersiones con estadí­sticas y historial.',
     icon: 'BookMarked',
     color: '#FFD700',
     category: 'herramientas'
@@ -113,3 +113,4 @@ export const calculators: Calculator[] = [
 
 export const getCalculatorBySlug = (slug: string): Calculator | undefined =>
   calculators.find(c => c.slug === slug);
+

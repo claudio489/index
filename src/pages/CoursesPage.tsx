@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
@@ -41,7 +41,7 @@ export default function CoursesPage() {
   return (
     <div className="px-4 pt-4 pb-6">
       <h1 className="text-2xl font-bold text-text-primary mb-1">Mis Repasos</h1>
-      <p className="text-sm text-text-secondary mb-5">Guías de repaso tecRec y especialidades PADI</p>
+      <p className="text-sm text-text-secondary mb-5">Guí­as de repaso tecRec y especialidades PADI</p>
 
       {grouped.map((group) => (
         <div key={group.category} className="mb-5">
@@ -93,7 +93,7 @@ export default function CoursesPage() {
                     <ul className="space-y-1.5 mb-3">
                       {course.learningPoints.map((point, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs text-text-secondary px-1">
-                          <span className="text-padi-blue mt-0.5">•</span>
+                          <span className="text-padi-blue mt-0.5">â€¢</span>
                           {point}
                         </li>
                       ))}
@@ -103,7 +103,7 @@ export default function CoursesPage() {
                         to={`/calculadoras/${course.calculatorSlug}`}
                         className="inline-flex items-center gap-1 text-xs text-padi-blue font-medium px-1 hover:underline mb-2"
                       >
-                        Ir a calculadora →
+                        Ir a calculadora â†’
                       </Link>
                     )}
 
@@ -123,3 +123,4 @@ export default function CoursesPage() {
     </div>
   );
 }
+

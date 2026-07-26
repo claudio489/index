@@ -1,0 +1,123 @@
+/**
+ * Access Control System - Offline, no third parties, no cost
+ * Claudio's master PIN: '458555' (his PADI instructor number)
+ */
+
+import CryptoJS from 'crypto-js';
+
+const MASTER_PIN_HASH = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae'; // SHA256 of '458555'
+const CODE_PREFIX = 'INDEX-';
+
+export interface AccessCode {
+  id: string;
+  name: string;
+  codeHash: string;
+  courses: string[];
+  expiresAt: string; // ISO date string
+  createdAt: string;
+  notes?: string;
+  // Campos para sync con Supabase (opcionales para compatibilidad)
+  role?: string;
+  isActive?: boolean;
+  deviceFp?: string;
+  deviceName?: string;
+}
+
+export interface SessionToken {
+  name: string;
+  courses: string[];
+  expiresAt: string;
+  codeId: string;
+}
+
+// Hash a string using SHA-256
+export function hash(str: string): string {
+  return CryptoJS.SHA256(str).toString();
+}
+
+// Verify master PIN
+export function verifyMasterPin(pin: string): boolean {
+  return hash(pin) === MASTER_PIN_HASH;
+}
+
+// Generate a random access code
+export function generateAccessCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I, O, 0, 1 to avoid confusion
+  let code = CODE_PREFIX;
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// Validate an access code against stored codes
+export function validateAccessCode(inputCode: string, storedCodes: AccessCode[]): AccessCode | null {
+  const inputHash = hash(inputCode.toUpperCase());
+  const now = new Date().toISOString();
+
+  for (const code of storedCodes) {
+    if (code.codeHash === inputHash && code.expiresAt > now) {
+      return code;
+    }
+  }
+  return null;
+}
+
+// Create a session token from an access code
+export function createSessionToken(code: AccessCode): SessionToken {
+  return {
+    name: code.name,
+    courses: code.courses,
+    expiresAt: code.expiresAt,
+    codeId: code.id,
+  };
+}
+
+// Encrypt session token for storage
+export function encryptSession(token: SessionToken, codeHash: string): string {
+  return CryptoJS.AES.encrypt(JSON.stringify(token), codeHash).toString();
+}
+
+// Decrypt session token from storage
+export function decryptSession(encrypted: string, codeHash: string): SessionToken | null {
+  try {
+    const decrypted = CryptoJS.AES.decrypt(encrypted, codeHash).toString(CryptoJS.enc.Utf8);
+    return JSON.parse(decrypted) as SessionToken;
+  } catch {
+    return null;
+  }
+}
+
+// Check if session is still valid
+export function isSessionValid(token: SessionToken): boolean {
+  return new Date(token.expiresAt) > new Date();
+}
+
+// Default codes for demo - pre-computed hash for INDEX-DEMO1
+const DEMO1_HASH = hash('INDEX-DEMO1');
+console.log('INDEX-DEMO1 hash:', DEMO1_HASH);
+
+export const defaultAccessCodes: AccessCode[] = [
+  {
+    id: 'demo-1',
+    name: 'Demo Alumno',
+    codeHash: DEMO1_HASH,
+    courses: ['enriched-air-nitrox', 'deep-diver', 'tec-40'],
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year for demo
+    createdAt: new Date().toISOString(),
+    notes: 'Cuenta demo - Usa el codigo INDEX-DEMO1',
+  },
+];
+
+// All available courses for admin selection
+export const availableCourses = [
+  { id: 'enriched-air-nitrox', name: 'Enriched Air Nitrox' },
+  { id: 'deep-diver', name: 'Deep Diver' },
+  { id: 'tec-40', name: 'Tec 40' },
+  { id: 'tec-45', name: 'Tec 45' },
+  { id: 'tec-50', name: 'Tec 50' },
+  { id: 'gas-blender', name: 'Gas Blender' },
+  { id: 'search-recovery', name: 'Search & Recovery' },
+  { id: 'navigation', name: 'Navigation' },
+  { id: 'tec-basics', name: 'Tec Basics' },
+];

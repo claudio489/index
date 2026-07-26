@@ -1,4 +1,4 @@
-import type { Course } from '@/types';
+﻿import type { Course } from '@/types';
 
 export const courses: Course[] = [
   {
@@ -8,12 +8,12 @@ export const courses: Course[] = [
     category: 'tecnico',
     color: '#0070D3',
     icon: 'FlaskConical',
-    description: 'Buceo con aire enriquecido en oxígeno para tiempos de fondo extendidos y menor fatiga por nitrógeno.',
+    description: 'Buceo con aire enriquecido en oxí­geno para tiempos de fondo extendidos y menor fatiga por nitrógeno.',
     learningPoints: [
       'Cálculo de MOD (Profundidad Máxima Operativa) para cada mezcla',
-      'Presión parcial de O2 (PO2): límites seguros 1.4 bar / contingencia 1.6 bar',
+      'Presión parcial de O2 (PO2): lí­mites seguros 1.4 bar / contingencia 1.6 bar',
       'Análisis y etiquetado de mezclas de gas antes de cada inmersión',
-      'Cálculo de oxígeno acumulado (CNS%) y gestión de toxicidad',
+      'Cálculo de oxí­geno acumulado (CNS%) y gestión de toxicidad',
       'Uso de calculadoras Nitrox para planificación de inmersiones'
     ],
     hasCalculator: true,
@@ -31,7 +31,7 @@ export const courses: Course[] = [
       'Planificación de inmersiones profundas con reservas de gas aumentadas',
       'Reconocimiento y manejo de la narcosis por nitrógeno',
       'Técnicas de descenso y ascenso controlado',
-      'Uso de guías de referencia y líneas de fondo',
+      'Uso de guí­as de referencia y lí­neas de fondo',
       'Comunicación y procedimientos de emergencia en profundidad'
     ],
     hasCalculator: true,
@@ -64,7 +64,7 @@ export const courses: Course[] = [
     icon: 'Cog',
     description: 'Segundo nivel tecRec: inmersiones hasta 45m con descompresión extendida y dos gases de deco.',
     learningPoints: [
-      'Descompresión con oxígeno puro y mezclas ricas (hasta 100% O2)',
+      'Descompresión con oxí­geno puro y mezclas ricas (hasta 100% O2)',
       'Planificación de perfiles de descompresión complejos',
       'Manejo de dos deco stages con cambios de gas',
       'Técnicas de ascenso con paradas obligatorias',
@@ -102,7 +102,7 @@ export const courses: Course[] = [
     learningPoints: [
       'Método de presión parcial para mezclado de Nitrox y Trimix',
       'Cálculos de mezcla: top-up, partial pressure, continuous flow',
-      'Manejo seguro de oxígeno puro y helio',
+      'Manejo seguro de oxí­geno puro y helio',
       'Limpieza de sistemas para uso con O2 (oxygen service)',
       'Análisis y verificación de mezclas producidas'
     ],
@@ -121,7 +121,7 @@ export const courses: Course[] = [
       'Patrones de búsqueda: circular, en U, en expansión',
       'Uso de bolsas de elevación (lift bags) de diferentes capacidades',
       'Cálculo de flotabilidad y peso de objetos sumergidos',
-      'Nudos y líneas para amarre y recuperación',
+      'Nudos y lí­neas para amarre y recuperación',
       'Planificación de operaciones de búsqueda con equipo'
     ],
     hasCalculator: false
@@ -135,7 +135,7 @@ export const courses: Course[] = [
     icon: 'Compass',
     description: 'Navegación subacuática con brújula, referencias naturales y técnicas de orientación.',
     learningPoints: [
-      'Uso de brújula subacuática en patrón recíproco',
+      'Uso de brújula subacuática en patrón recí­proco',
       'Navegación por referencias naturales y artificiales',
       'Patrones de búsqueda y mapeo del sitio de buceo',
       'Estimación de distancias y tiempos de navegación',
@@ -168,3 +168,4 @@ export const getCourseBySlug = (slug: string): Course | undefined =>
 
 export const getCoursesByCategory = (category: Course['category']): Course[] =>
   courses.filter(c => c.category === category);
+

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { getIcon } from '@/lib/icons';
 import { Link } from 'react-router-dom';
 import { courses } from '@/data/courses';
@@ -79,7 +79,7 @@ export default function CoursesCarousel() {
                   )}
 
                   <span className="text-xs text-padi-blue font-medium">
-                    {progressPct > 0 ? 'Continuar' : 'Ver detalle'} →
+                    {progressPct > 0 ? 'Continuar' : 'Ver detalle'} â†’
                   </span>
                 </div>
               </Link>
@@ -90,3 +90,4 @@ export default function CoursesCarousel() {
     </section>
   );
 }
+
