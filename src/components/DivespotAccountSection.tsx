@@ -1,4 +1,4 @@
-// src/components/DivespotAccountSection.tsx
+﻿// src/components/DivespotAccountSection.tsx
 // Seccion de cuenta REAL (email + contrasena, Supabase Auth) contra el proyecto divespot.
 // Convive en paralelo con el sistema de codigos INDEX-XXXX. No lo reemplaza (todavia).
 
@@ -55,7 +55,7 @@ export const DivespotAccountSection: React.FC = () => {
   return (
     <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-4">
       <h3 className="text-white font-medium flex items-center gap-2">
-        <Award className="w-5 h-5 text-cyan-400" /> Cuenta Divespot
+        <Award className="w-5 h-5 text-cyan-400" /> Cuenta DeepSpot
       </h3>
 
       {isAuthenticated ? (
@@ -73,7 +73,7 @@ export const DivespotAccountSection: React.FC = () => {
             onClick={() => signOut()}
             className="w-full py-2.5 bg-white/10 border border-white/20 rounded-lg text-white font-medium hover:bg-white/15 transition-all flex items-center justify-center gap-2"
           >
-            <LogOut className="w-4 h-4" /> Cerrar sesion Divespot
+            <LogOut className="w-4 h-4" /> Cerrar sesion DeepSpot
           </button>
         </div>
       ) : (
