@@ -41,7 +41,9 @@ export interface CreateCodeParams {
 }
 
 // ============================================================
-// DEVICE BINDING (localStorage - no en Supabase)
+// DEVICE BINDING LOCAL (solo para codigos de fallback creados sin
+// Supabase — ver mas abajo por que este metodo es seguro solo en ese caso
+// puntual, y NO para codigos reales de Supabase).
 // ============================================================
 interface DeviceBinding {
   codeId: string
@@ -258,10 +260,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           return false;
         }
 
-        // Verificar device binding
-        if (isDeviceBound(data.id) && !isSameDevice(data.id, deviceFp)) {
+        // ============================================================
+        // DEVICE BINDING REAL: se verifica y guarda en Supabase
+        // (device_fp/bound_at en la fila del codigo), no en localStorage.
+        //
+        // Por que el binding anterior en localStorage no protegia nada:
+        // cada dispositivo solo consultaba SU PROPIO localStorage, que
+        // nunca tiene registro de lo que paso en otros dispositivos. Dos
+        // celulares distintos usando el mismo codigo simplemente nunca se
+        // enteraban el uno del otro. Guardando el binding en la fila de
+        // Supabase, cualquier dispositivo que consulte el codigo ve el
+        // mismo dato, sin importar desde donde se conecte.
+        // ============================================================
+        if (data.device_fp && data.device_fp !== deviceFp) {
           set({ loginError: 'Este codigo ya fue usado en otro dispositivo. Solicita uno nuevo.' });
           return false;
+        }
+
+        if (!data.device_fp) {
+          // Bind atomico: el UPDATE solo tiene efecto si device_fp sigue
+          // siendo null en ese instante. Si dos dispositivos intentan
+          // atar el mismo codigo casi al mismo tiempo, solo el primero
+          // que llegue a Supabase gana la fila; el segundo recibe
+          // bindResult vacio y se lo rechaza. Sin esto, ambos podrian
+          // pasar la verificacion inicial (data.device_fp era null para
+          // los dos) y terminar compartiendo el codigo igual.
+          const { data: bindResult, error: bindError } = await supabase
+            .from(TBL)
+            .update({ device_fp: deviceFp, bound_at: now })
+            .eq('id', data.id)
+            .is('device_fp', null)
+            .select()
+            .maybeSingle();
+
+          if (bindError) throw bindError;
+
+          if (!bindResult) {
+            set({ loginError: 'Este codigo ya fue usado en otro dispositivo. Solicita uno nuevo.' });
+            return false;
+          }
         }
 
         // Crear token
@@ -273,13 +310,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           code: data.code,
         };
 
-        // Guardar device binding
-        saveDeviceBinding({
-          codeId: data.id,
-          deviceFp,
-          boundAt: now,
-        });
-
         // Guardar sesion
         localStorage.setItem(SESSION_KEY, JSON.stringify(token));
         set({ token, isAuthenticated: true, loginError: '' });
@@ -290,6 +320,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // 2. Fallback: buscar en localStorage (admin-store)
+    // Estos son codigos creados localmente cuando Supabase no estaba
+    // disponible al momento de crearlos — nunca salen de este navegador,
+    // asi que el binding en localStorage sigue siendo correcto solo para
+    // este caso puntual (no hay otro dispositivo que pueda verlos).
     const localCodes = useAdminStore.getState().codes;
     const localCode = localCodes.find(c => c.code === code && c.isActive);
     if (localCode) {
@@ -333,8 +367,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ token: null, isAuthenticated: false, loginError: 'Sesion expirada.' });
         return;
       }
-      // Verificar device binding
+
       const deviceFp = getDeviceFingerprint();
+
+      // Re-verificar el binding contra Supabase (fuente de verdad
+      // compartida) cada vez que se carga la sesion — asi, si el codigo
+      // fue revocado o atado a otro dispositivo mientras tanto, esta
+      // sesion se corta en vez de seguir confiando ciegamente en el
+      // token guardado localmente.
+      try {
+        const { data, error } = await supabase
+          .from(TBL)
+          .select('id, device_fp, is_active')
+          .eq('id', token.codeId)
+          .maybeSingle();
+
+        if (!error && data) {
+          if (!data.is_active) {
+            localStorage.removeItem(SESSION_KEY);
+            set({ token: null, isAuthenticated: false, loginError: 'Codigo revocado.' });
+            return;
+          }
+          if (data.device_fp && data.device_fp !== deviceFp) {
+            localStorage.removeItem(SESSION_KEY);
+            set({ token: null, isAuthenticated: false, loginError: 'Dispositivo no autorizado.' });
+            return;
+          }
+          set({ token, isAuthenticated: true, loginError: '' });
+          return;
+        }
+      } catch (err) {
+        console.warn('No se pudo verificar device binding contra Supabase, usando fallback local:', err);
+      }
+
+      // Fallback: codigo local (no existe en Supabase, o fallo la consulta)
       if (isDeviceBound(token.codeId) && !isSameDevice(token.codeId, deviceFp)) {
         localStorage.removeItem(SESSION_KEY);
         set({ token: null, isAuthenticated: false, loginError: 'Dispositivo no autorizado.' });
