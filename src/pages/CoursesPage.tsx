@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import { courses } from '@/data/courses';
 import VideoSection from '@/components/VideoSection';
 import type { VideoItem } from '@/components/VideoSection';
-import { useSessionStore } from '@/stores/useSessionStore';
 
 // Course videos configuration
 const courseVideos: Record<string, VideoItem[]> = {
@@ -27,10 +26,15 @@ const categoryOrder = ['tecRec', 'tecnico', 'especialidad', 'recreacional'];
 
 export default function CoursesPage() {
   const [openId, setOpenId] = useState<string | null>(null);
-  const hasCourseAccess = useSessionStore(s => s.hasCourseAccess);
 
-  // Filter courses by user's access code permissions
-  const accessibleCourses = courses.filter(c => hasCourseAccess(c.id));
+  // NOTA: antes se filtraba con hasCourseAccess() del viejo sistema de
+  // codigos INDEX-XXXX (useSessionStore), que ya no esta en uso. Como ese
+  // sistema nunca genera un token real hoy, la funcion siempre devolvia
+  // false y la lista de cursos quedaba vacia para todos. ProtectedRoute
+  // (en App.tsx) ya garantiza que solo usuarios autenticados de verdad
+  // (login real con email/contrasena) llegan a esta pantalla, asi que no
+  // hace falta un segundo filtro aca — se muestran todos los cursos.
+  const accessibleCourses = courses;
 
   const grouped = categoryOrder.map(cat => ({
     category: cat,
@@ -93,7 +97,7 @@ export default function CoursesPage() {
                     <ul className="space-y-1.5 mb-3">
                       {course.learningPoints.map((point, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs text-text-secondary px-1">
-                          <span className="text-padi-blue mt-0.5">â€¢</span>
+                          <span className="text-padi-blue mt-0.5">•</span>
                           {point}
                         </li>
                       ))}
@@ -103,7 +107,7 @@ export default function CoursesPage() {
                         to={`/calculadoras/${course.calculatorSlug}`}
                         className="inline-flex items-center gap-1 text-xs text-padi-blue font-medium px-1 hover:underline mb-2"
                       >
-                        Ir a calculadora â†’
+                        Ir a calculadora →
                       </Link>
                     )}
 
@@ -123,4 +127,3 @@ export default function CoursesPage() {
     </div>
   );
 }
-

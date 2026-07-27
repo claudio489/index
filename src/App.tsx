@@ -8,26 +8,16 @@ import CalculatorDetailPage from '@/pages/CalculatorDetailPage';
 import PlannerPage from '@/pages/PlannerPage';
 import LogbookPage from '@/pages/LogbookPage';
 import LoginPage from '@/pages/LoginPage';
-import AdminPage from '@/pages/AdminPage';
 import EquipmentPage from '@/pages/EquipmentPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import ExpeditionToolPage from '@/pages/ExpeditionToolPage';
 import ExpeditionDetailPage from '@/pages/ExpeditionDetailPage';
 
-// FORZAR INCLUSION DEL ADMIN Y EQUIPO (evitar tree-shaking)
-const _ensureModulesLoaded = () => {
-  console.log('Modules loaded:', AdminPage.name, EquipmentPage.name);
-  return { AdminPage, EquipmentPage };
-};
-
 export default function App() {
-  // Evaluar la funcion para que Vite no la elimine
-  _ensureModulesLoaded();
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin" element={<AdminPage />} />
       {/* Protected routes */}
       <Route path="/" element={
         <ProtectedRoute>
