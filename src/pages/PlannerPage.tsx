@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calculator, AlertTriangle, Lock, CheckCircle2 } from 'lucide-react';
+import { Calculator, AlertTriangle, Lock, CheckCircle2, Smartphone } from 'lucide-react';
 import { calculateDivePlan, calculateNo50Plan } from '../lib/buhlmann';
 import type { DivePlan } from '../lib/buhlmann';
 import DivePlanForm from '../components/DivePlanForm';
@@ -10,6 +10,17 @@ import DiveProfileChart from '../components/DiveProfileChart';
 import GasConsumptionPanel from '../components/GasConsumptionPanel';
 import { useDivespotAuthStore } from '../stores/useDivespotAuthStore';
 import { supabaseDivespot } from '../lib/supabaseDivespot';
+
+const DEVICE_ID_KEY = 'deepspot_tech_device_id';
+
+function getOrCreateLocalDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
 
 function TechAccessLocked() {
   const userId = useDivespotAuthStore((s) => s.userId);
@@ -89,8 +100,83 @@ function TechAccessLocked() {
   );
 }
 
+function DeviceLocked({ limit }: { limit: number }) {
+  return (
+    <div className="px-4 max-w-2xl mx-auto">
+      <div className="bg-ocean-dark border border-alert-red/30 rounded-2xl p-8 text-center space-y-4">
+        <div className="w-14 h-14 mx-auto rounded-full bg-alert-red/10 flex items-center justify-center">
+          <Smartphone className="w-7 h-7 text-alert-red" />
+        </div>
+        <h2 className="text-text-primary text-lg font-bold">
+          Limite de dispositivos alcanzado
+        </h2>
+        <p className="text-text-secondary text-sm leading-relaxed">
+          El Planificador Deco de esta cuenta ya esta activo en {limit} dispositivo{limit === 1 ? '' : 's'}.
+          Si necesitas usarlo en uno adicional, contacta a Claudio.
+        </p>
+        <a
+          href="mailto:claudio@deepspot.cl?subject=Agregar%20dispositivo%20-%20Modulo%20tecnico"
+          className="inline-block bg-padi-blue hover:bg-padi-blue-light text-white font-semibold px-6 py-3 rounded-full transition-all"
+        >
+          Contactar a Claudio
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function useDeviceCheck(techAccessVerified: boolean | undefined) {
+  const userId = useDivespotAuthStore((s) => s.userId);
+  const [deviceStatus, setDeviceStatus] = useState<'checking' | 'ok' | 'blocked'>('checking');
+  const [limit, setLimit] = useState(1);
+
+  useEffect(() => {
+    if (!techAccessVerified || !userId) {
+      setDeviceStatus('checking');
+      return;
+    }
+
+    let active = true;
+    const localId = getOrCreateLocalDeviceId();
+
+    supabaseDivespot
+      .from('profiles')
+      .select('tech_device_ids, tech_device_limit')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(async ({ data }) => {
+        if (!active) return;
+        const deviceIds: string[] = data?.tech_device_ids || [];
+        const deviceLimit: number = data?.tech_device_limit ?? 1;
+        setLimit(deviceLimit);
+
+        if (deviceIds.includes(localId)) {
+          setDeviceStatus('ok');
+          return;
+        }
+
+        if (deviceIds.length < deviceLimit) {
+          // Hay espacio: este dispositivo se agrega automaticamente a la lista
+          const updated = [...deviceIds, localId];
+          await supabaseDivespot
+            .from('profiles')
+            .update({ tech_device_ids: updated })
+            .eq('id', userId);
+          if (active) setDeviceStatus('ok');
+        } else {
+          setDeviceStatus('blocked');
+        }
+      });
+
+    return () => { active = false; };
+  }, [techAccessVerified, userId]);
+
+  return { deviceStatus, limit };
+}
+
 export default function PlannerPage() {
   const techAccessVerified = useDivespotAuthStore((s) => s.profile?.tech_access_verified);
+  const { deviceStatus, limit } = useDeviceCheck(techAccessVerified);
   const [plan, setPlan] = useState<DivePlan | null>(null);
   const [contingencyPlan, setContingencyPlan] = useState<DivePlan | null>(null);
   const [lastInput, setLastInput] = useState<{ depth: number; bottomTime: number } | null>(null);
@@ -143,6 +229,22 @@ export default function PlannerPage() {
     return (
       <div className="min-h-screen pb-20 pt-10">
         <TechAccessLocked />
+      </div>
+    );
+  }
+
+  if (deviceStatus === 'checking') {
+    return (
+      <div className="min-h-screen pb-20 pt-10 flex items-center justify-center">
+        <p className="text-text-secondary text-sm">Verificando dispositivo...</p>
+      </div>
+    );
+  }
+
+  if (deviceStatus === 'blocked') {
+    return (
+      <div className="min-h-screen pb-20 pt-10">
+        <DeviceLocked limit={limit} />
       </div>
     );
   }
