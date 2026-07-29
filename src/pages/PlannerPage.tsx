@@ -9,26 +9,43 @@ import DecoTable from '../components/DecoTable';
 import DiveProfileChart from '../components/DiveProfileChart';
 import GasConsumptionPanel from '../components/GasConsumptionPanel';
 import { useDivespotAuthStore } from '../stores/useDivespotAuthStore';
+import { supabaseDivespot } from '../lib/supabaseDivespot';
 
 function TechAccessLocked() {
   const userId = useDivespotAuthStore((s) => s.userId);
   const email = useDivespotAuthStore((s) => s.email);
   const fullName = useDivespotAuthStore((s) => s.profile?.full_name);
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleRequest = async () => {
     if (!userId || !email) return;
     setStatus('sending');
+    setErrorMsg('');
     try {
+      const { data: sessionData } = await supabaseDivespot.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error('No hay sesion activa, intenta cerrar sesion e iniciar de nuevo');
+      }
+
       const res = await fetch('/.netlify/functions/request-activation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email, fullName }),
+        body: JSON.stringify({ userId, email, fullName, accessToken }),
       });
-      if (!res.ok) throw new Error('No se pudo enviar la solicitud');
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo enviar la solicitud');
+      }
+
       setStatus('sent');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setErrorMsg(err.message || '');
       setStatus('error');
     }
   };
@@ -64,7 +81,7 @@ function TechAccessLocked() {
 
         {status === 'error' && (
           <p className="text-alert-red text-xs">
-            No se pudo enviar la solicitud. Intenta de nuevo o escribinos a claudio@deepspot.cl
+            No se pudo enviar la solicitud{errorMsg ? `: ${errorMsg}` : ''}. Intenta de nuevo o escribinos a claudio@deepspot.cl
           </p>
         )}
       </div>

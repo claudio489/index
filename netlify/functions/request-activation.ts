@@ -1,5 +1,6 @@
-﻿// netlify/functions/request-activation.ts
+// netlify/functions/request-activation.ts
 // Recibe una solicitud de activacion de modulo tecnico, la guarda en Supabase
+// (usando el token de sesion real del usuario, para pasar la politica RLS)
 // y envia un mail de aviso a Claudio via Resend.
 
 import type { Handler } from "@netlify/functions";
@@ -17,19 +18,20 @@ export const handler: Handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || "{}");
-    const { userId, email, fullName } = body;
+    const { userId, email, fullName, accessToken } = body;
 
-    if (!userId || !email) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Faltan datos" }) };
+    if (!userId || !email || !accessToken) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Faltan datos (falta sesion activa)" }) };
     }
 
-    // 1. Guardar la solicitud en Supabase (respaldo aunque el mail falle)
+    // 1. Guardar la solicitud en Supabase, usando el token del usuario real
+    // (no la anon key sola) para que la politica RLS "auth.uid() = user_id" se cumpla.
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/activation_requests`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Authorization": `Bearer ${accessToken}`,
         "Prefer": "return=minimal",
       },
       body: JSON.stringify({
@@ -43,6 +45,10 @@ export const handler: Handler = async (event) => {
     if (!insertRes.ok) {
       const errText = await insertRes.text();
       console.error("Error guardando solicitud en Supabase:", errText);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "No se pudo guardar la solicitud", detail: errText }),
+      };
     }
 
     // 2. Enviar mail de aviso via Resend (si falla, no rompe la solicitud ya guardada)
@@ -86,4 +92,3 @@ export const handler: Handler = async (event) => {
     };
   }
 };
-
