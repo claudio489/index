@@ -12,6 +12,7 @@ export interface DivespotProfile {
   is_instructor: boolean;
   cert_level: string | null;
   dive_level: string | null;
+  tech_access_verified: boolean;
 }
 
 interface DivespotAuthState {
@@ -31,7 +32,7 @@ interface DivespotAuthState {
 async function fetchProfile(userId: string): Promise<DivespotProfile | null> {
   const { data, error } = await supabaseDivespot
     .from('profiles')
-    .select('id, name, full_name, is_instructor, cert_level, dive_level')
+    .select('id, name, full_name, is_instructor, cert_level, dive_level, tech_access_verified')
     .eq('id', userId)
     .maybeSingle();
   if (error || !data) return null;
@@ -129,3 +130,4 @@ export const useDivespotAuthStore = create<DivespotAuthState>((set) => ({
   },
   clearError: () => set({ error: '' }),
 }));
+

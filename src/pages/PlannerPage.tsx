@@ -1,6 +1,6 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calculator, AlertTriangle } from 'lucide-react';
+import { Calculator, AlertTriangle, Lock, CheckCircle2 } from 'lucide-react';
 import { calculateDivePlan, calculateNo50Plan } from '../lib/buhlmann';
 import type { DivePlan } from '../lib/buhlmann';
 import DivePlanForm from '../components/DivePlanForm';
@@ -8,8 +8,72 @@ import type { DivePlanInput } from '../components/DivePlanForm';
 import DecoTable from '../components/DecoTable';
 import DiveProfileChart from '../components/DiveProfileChart';
 import GasConsumptionPanel from '../components/GasConsumptionPanel';
+import { useDivespotAuthStore } from '../stores/useDivespotAuthStore';
+
+function TechAccessLocked() {
+  const userId = useDivespotAuthStore((s) => s.userId);
+  const email = useDivespotAuthStore((s) => s.email);
+  const fullName = useDivespotAuthStore((s) => s.profile?.full_name);
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  const handleRequest = async () => {
+    if (!userId || !email) return;
+    setStatus('sending');
+    try {
+      const res = await fetch('/.netlify/functions/request-activation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, email, fullName }),
+      });
+      if (!res.ok) throw new Error('No se pudo enviar la solicitud');
+      setStatus('sent');
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="px-4 max-w-2xl mx-auto">
+      <div className="bg-ocean-dark border border-alert-gold/30 rounded-2xl p-8 text-center space-y-4">
+        <div className="w-14 h-14 mx-auto rounded-full bg-alert-gold/10 flex items-center justify-center">
+          <Lock className="w-7 h-7 text-alert-gold" />
+        </div>
+        <h2 className="text-text-primary text-lg font-bold">
+          Modulo tecnico restringido
+        </h2>
+        <p className="text-text-secondary text-sm leading-relaxed">
+          El Planificador Deco requiere certificaciones verificadas (Nitrox, Gas Blender y Tec 40).
+          Si ya las tienes, solicita la activacion de tu cuenta.
+        </p>
+
+        {status === 'sent' ? (
+          <div className="flex items-center justify-center gap-2 text-success-green font-semibold py-3">
+            <CheckCircle2 className="w-5 h-5" />
+            Solicitud enviada. Te avisaremos cuando este activo.
+          </div>
+        ) : (
+          <button
+            onClick={handleRequest}
+            disabled={status === 'sending'}
+            className="inline-block bg-padi-blue hover:bg-padi-blue-light text-white font-semibold px-6 py-3 rounded-full transition-all disabled:opacity-50"
+          >
+            {status === 'sending' ? 'Enviando...' : 'Solicitar activacion / informacion'}
+          </button>
+        )}
+
+        {status === 'error' && (
+          <p className="text-alert-red text-xs">
+            No se pudo enviar la solicitud. Intenta de nuevo o escribinos a claudio@deepspot.cl
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PlannerPage() {
+  const techAccessVerified = useDivespotAuthStore((s) => s.profile?.tech_access_verified);
   const [plan, setPlan] = useState<DivePlan | null>(null);
   const [contingencyPlan, setContingencyPlan] = useState<DivePlan | null>(null);
   const [lastInput, setLastInput] = useState<{ depth: number; bottomTime: number } | null>(null);
@@ -57,6 +121,14 @@ export default function PlannerPage() {
       setLoading(false);
     }
   };
+
+  if (!techAccessVerified) {
+    return (
+      <div className="min-h-screen pb-20 pt-10">
+        <TechAccessLocked />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-20">
