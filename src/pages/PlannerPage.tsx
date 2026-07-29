@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calculator, AlertTriangle, Lock, CheckCircle2, Smartphone } from 'lucide-react';
 import { calculateDivePlan, calculateNo50Plan } from '../lib/buhlmann';
@@ -22,37 +22,34 @@ function getOrCreateLocalDeviceId(): string {
   return id;
 }
 
+async function sendActivationRequest(type: 'tech_access' | 'extra_device') {
+  const { userId, email, profile } = useDivespotAuthStore.getState();
+  const fullName = profile?.full_name;
+  if (!userId || !email) throw new Error('No hay sesion activa');
+
+  const { data: sessionData } = await supabaseDivespot.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error('No hay sesion activa, intenta cerrar sesion e iniciar de nuevo');
+
+  const res = await fetch('/.netlify/functions/request-activation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, email, fullName, accessToken, type }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo enviar la solicitud');
+}
+
 function TechAccessLocked() {
-  const userId = useDivespotAuthStore((s) => s.userId);
-  const email = useDivespotAuthStore((s) => s.email);
-  const fullName = useDivespotAuthStore((s) => s.profile?.full_name);
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleRequest = async () => {
-    if (!userId || !email) return;
     setStatus('sending');
     setErrorMsg('');
     try {
-      const { data: sessionData } = await supabaseDivespot.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error('No hay sesion activa, intenta cerrar sesion e iniciar de nuevo');
-      }
-
-      const res = await fetch('/.netlify/functions/request-activation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, email, fullName, accessToken }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'No se pudo enviar la solicitud');
-      }
-
+      await sendActivationRequest('tech_access');
       setStatus('sent');
     } catch (err: any) {
       console.error(err);
@@ -101,6 +98,22 @@ function TechAccessLocked() {
 }
 
 function DeviceLocked({ limit }: { limit: number }) {
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleRequest = async () => {
+    setStatus('sending');
+    setErrorMsg('');
+    try {
+      await sendActivationRequest('extra_device');
+      setStatus('sent');
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || '');
+      setStatus('error');
+    }
+  };
+
   return (
     <div className="px-4 max-w-2xl mx-auto">
       <div className="bg-ocean-dark border border-alert-red/30 rounded-2xl p-8 text-center space-y-4">
@@ -114,12 +127,27 @@ function DeviceLocked({ limit }: { limit: number }) {
           El Planificador Deco de esta cuenta ya esta activo en {limit} dispositivo{limit === 1 ? '' : 's'}.
           Si necesitas usarlo en uno adicional, contactanos.
         </p>
-        <a
-          href="mailto:claudio@deepspot.cl?subject=Agregar%20dispositivo%20-%20Modulo%20tecnico"
-          className="inline-block bg-padi-blue hover:bg-padi-blue-light text-white font-semibold px-6 py-3 rounded-full transition-all"
-        >
-          Contactar
-        </a>
+
+        {status === 'sent' ? (
+          <div className="flex items-center justify-center gap-2 text-success-green font-semibold py-3">
+            <CheckCircle2 className="w-5 h-5" />
+            Solicitud enviada. Te avisaremos cuando este resuelto.
+          </div>
+        ) : (
+          <button
+            onClick={handleRequest}
+            disabled={status === 'sending'}
+            className="inline-block bg-padi-blue hover:bg-padi-blue-light text-white font-semibold px-6 py-3 rounded-full transition-all disabled:opacity-50"
+          >
+            {status === 'sending' ? 'Enviando...' : 'Contactar'}
+          </button>
+        )}
+
+        {status === 'error' && (
+          <p className="text-alert-red text-xs">
+            No se pudo enviar la solicitud{errorMsg ? `: ${errorMsg}` : ''}. Intenta de nuevo o escribinos a claudio@deepspot.cl
+          </p>
+        )}
       </div>
     </div>
   );
@@ -156,7 +184,6 @@ function useDeviceCheck(techAccessVerified: boolean | undefined) {
         }
 
         if (deviceIds.length < deviceLimit) {
-          // Hay espacio: este dispositivo se agrega automaticamente a la lista
           const updated = [...deviceIds, localId];
           await supabaseDivespot
             .from('profiles')
@@ -346,5 +373,3 @@ export default function PlannerPage() {
     </div>
   );
 }
-
-
