@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calculator, AlertTriangle, Lock, CheckCircle2, Smartphone } from 'lucide-react';
 import { calculateDivePlan, calculateNo50Plan } from '../lib/buhlmann';
@@ -112,13 +112,13 @@ function DeviceLocked({ limit }: { limit: number }) {
         </h2>
         <p className="text-text-secondary text-sm leading-relaxed">
           El Planificador Deco de esta cuenta ya esta activo en {limit} dispositivo{limit === 1 ? '' : 's'}.
-          Si necesitas usarlo en uno adicional, contacta a Claudio.
+          Si necesitas usarlo en uno adicional, contactanos.
         </p>
         <a
           href="mailto:claudio@deepspot.cl?subject=Agregar%20dispositivo%20-%20Modulo%20tecnico"
           className="inline-block bg-padi-blue hover:bg-padi-blue-light text-white font-semibold px-6 py-3 rounded-full transition-all"
         >
-          Contactar a Claudio
+          Contactar
         </a>
       </div>
     </div>
@@ -346,3 +346,5 @@ export default function PlannerPage() {
     </div>
   );
 }
+
+
